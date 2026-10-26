@@ -1,0 +1,20 @@
+.env
+credentials.json
+token.json
+service_account.json
+rto_entries.db
+dropdown_cache.csv
+__pycache__/
+*.pyc
+.DS_Store
+rto_delivered_cache.json
+dn_status_cache.json
+rto_mdnd_cache.json
+rto_mdnd_net_cache.json
+rto_recon_cache.json
+recon_dn_cache.json
+*.tmp
+.cache/
+# local clone of SupertailsPCPL/analytics-scripts (its own git repo)
+analytics-scripts/
+.pytest_cache/

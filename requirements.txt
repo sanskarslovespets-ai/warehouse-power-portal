@@ -1,0 +1,15 @@
+# Exact versions, so a server build installs what was tested (bump deliberately, then re-run tests + pip-audit).
+fastapi==0.161.1
+google-api-python-client==2.200.0
+google-auth==2.58.0
+google-auth-httplib2==0.4.2
+google-auth-oauthlib==1.4.1
+pymysql==1.2.3
+python-dotenv==1.2.3
+python-multipart==0.0.32
+requests==2.34.2
+uvicorn[standard]==0.54.0
+# IAP signs its tokens with ES256, which google-auth verifies through cryptography (security.py).
+cryptography==50.0.1
+# Older CA bundles still trust a root whose intermediates' keys were compromised (PYSEC-2026-4320).
+certifi>=2026.10.19

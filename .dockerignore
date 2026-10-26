@@ -1,0 +1,25 @@
+# Never ship secrets or local data in an image: on a server, DB passwords come from Secret Manager
+# and Google access from the runtime service account, not from these files.
+.env
+.env.*
+service_account.json
+credentials.json
+token.json
+secrets/
+*.db
+*.db-journal
+*_cache.json
+dropdown_cache.csv
+*.tmp
+.cache/
+
+# Not part of the app
+analytics-scripts/
+archive/
+tests/
+*.pdf
+.git/
+.pytest_cache/
+__pycache__/
+*.pyc
+.DS_Store
