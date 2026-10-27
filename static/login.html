@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · Warehouse Power Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@300;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!--
+    Served at /login (main.py). Only this page, css/style.css, js/login.js, favicon.png and the Supertails
+    logo load without a session (auth.PUBLIC_PATHS), so everything else it shows is inline: the floor map is
+    SVG styled by the .lp-* rules in style.css. Below 900px wide the left side shrinks to a band with the
+    brand above the form.
+  -->
+  <div class="login-page">
+    <section class="login-art">
+      <span class="brand">
+        <img class="brand-logo" src="img/supertails-logo.png" width="246" height="63" alt="Supertails">
+        <span class="brand-name">Warehouse Power <span class="brand-sub">Portal</span></span>
+      </span>
+
+      <div class="login-map">
+        <div class="login-map-frame">
+          <!-- A warehouse from above: inward docks (left), racks A-D, staging pallets, and a returned parcel
+               travelling from the inward door to its slot in the RTO bay. -->
+          <svg class="login-map-svg" viewBox="0 0 560 380" aria-hidden="true" focusable="false">
+            <defs>
+              <path id="lp-route" d="M18 116H229q8 0 8 8v44q0 8 8 8h145q8 0 8 8v9q0 8 8 8h34"/>
+              <linearGradient id="lp-trail" gradientUnits="userSpaceOnUse" x1="18" y1="0" x2="440" y2="0">
+                <stop offset="0" stop-color="#e4580b" stop-opacity="0"/>
+                <stop offset="1" stop-color="#e4580b" stop-opacity=".45"/>
+              </linearGradient>
+              <filter id="lp-blur" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="3.5"/></filter>
+            </defs>
+
+            <rect class="lp-wall" x="16" y="16" width="528" height="348" rx="18"/>
+            <g class="lp-door">
+              <rect x="11" y="161" width="7" height="30" rx="2"/>
+              <rect x="11" y="221" width="7" height="30" rx="2"/>
+              <rect x="542" y="101" width="7" height="30" rx="2"/>
+              <rect x="542" y="161" width="7" height="30" rx="2"/>
+              <rect x="542" y="221" width="7" height="30" rx="2"/>
+            </g>
+            <rect class="lp-door-live" x="11" y="101" width="7" height="30" rx="2"/>
+            <g class="lp-label">
+              <text x="36" y="46">INWARD</text>
+              <text x="524" y="46" text-anchor="end">DISPATCH</text>
+              <text x="94" y="302">STAGING</text>
+            </g>
+
+            <!-- racks: two blocks of 5 bins per row, split by a cross aisle -->
+            <g class="lp-rack">
+              <rect x="94" y="72" width="130" height="28" rx="4"/>
+              <rect x="250" y="72" width="130" height="28" rx="4"/>
+              <rect x="94" y="132" width="130" height="28" rx="4"/>
+              <rect x="250" y="132" width="130" height="28" rx="4"/>
+              <rect x="94" y="192" width="130" height="28" rx="4"/>
+              <rect x="250" y="192" width="130" height="28" rx="4"/>
+              <rect x="94" y="252" width="130" height="28" rx="4"/>
+              <rect x="250" y="252" width="130" height="28" rx="4"/>
+            </g>
+            <path class="lp-bins" d="M120 76v20M146 76v20M172 76v20M198 76v20M276 76v20M302 76v20M328 76v20M354 76v20M120 136v20M146 136v20M172 136v20M198 136v20M276 136v20M302 136v20M328 136v20M354 136v20M120 196v20M146 196v20M172 196v20M198 196v20M276 196v20M302 196v20M328 196v20M354 196v20M120 256v20M146 256v20M172 256v20M198 256v20M276 256v20M302 256v20M328 256v20M354 256v20"/>
+            <g class="lp-box">
+              <rect x="99" y="78" width="16" height="16" rx="3"/>
+              <rect x="151" y="78" width="16" height="16" rx="3"/>
+              <rect x="203" y="78" width="16" height="16" rx="3"/>
+              <rect x="255" y="78" width="16" height="16" rx="3"/>
+              <rect x="281" y="78" width="16" height="16" rx="3"/>
+              <rect x="333" y="78" width="16" height="16" rx="3"/>
+              <rect x="125" y="138" width="16" height="16" rx="3"/>
+              <rect x="151" y="138" width="16" height="16" rx="3"/>
+              <rect x="177" y="138" width="16" height="16" rx="3"/>
+              <rect x="255" y="138" width="16" height="16" rx="3"/>
+              <rect x="307" y="138" width="16" height="16" rx="3"/>
+              <rect x="359" y="138" width="16" height="16" rx="3"/>
+              <rect x="99" y="198" width="16" height="16" rx="3"/>
+              <rect x="125" y="198" width="16" height="16" rx="3"/>
+              <rect x="203" y="198" width="16" height="16" rx="3"/>
+              <rect x="281" y="198" width="16" height="16" rx="3"/>
+              <rect x="307" y="198" width="16" height="16" rx="3"/>
+              <rect x="359" y="198" width="16" height="16" rx="3"/>
+              <rect x="99" y="258" width="16" height="16" rx="3"/>
+              <rect x="151" y="258" width="16" height="16" rx="3"/>
+              <rect x="177" y="258" width="16" height="16" rx="3"/>
+              <rect x="255" y="258" width="16" height="16" rx="3"/>
+              <rect x="333" y="258" width="16" height="16" rx="3"/>
+              <rect x="359" y="258" width="16" height="16" rx="3"/>
+            </g>
+            <g class="lp-box lp-box-hi">
+              <rect x="125" y="78" width="16" height="16" rx="3"/>
+              <rect x="307" y="78" width="16" height="16" rx="3"/>
+              <rect x="99" y="138" width="16" height="16" rx="3"/>
+              <rect x="203" y="138" width="16" height="16" rx="3"/>
+              <rect x="333" y="138" width="16" height="16" rx="3"/>
+              <rect x="177" y="198" width="16" height="16" rx="3"/>
+              <rect x="255" y="198" width="16" height="16" rx="3"/>
+              <rect x="203" y="258" width="16" height="16" rx="3"/>
+              <rect x="281" y="258" width="16" height="16" rx="3"/>
+            </g>
+            <g class="lp-label">
+              <text x="80" y="89" text-anchor="middle">A</text>
+              <text x="80" y="149" text-anchor="middle">B</text>
+              <text x="80" y="209" text-anchor="middle">C</text>
+              <text x="80" y="269" text-anchor="middle">D</text>
+            </g>
+
+            <!-- staging pallets, some loaded -->
+            <g class="lp-pallet">
+              <rect x="94" y="312" width="22" height="22" rx="3"/>
+              <rect x="127" y="312" width="22" height="22" rx="3"/>
+              <rect x="160" y="312" width="22" height="22" rx="3"/>
+              <rect x="193" y="312" width="22" height="22" rx="3"/>
+              <rect x="226" y="312" width="22" height="22" rx="3"/>
+              <rect x="259" y="312" width="22" height="22" rx="3"/>
+              <rect x="292" y="312" width="22" height="22" rx="3"/>
+              <rect x="325" y="312" width="22" height="22" rx="3"/>
+              <rect x="358" y="312" width="22" height="22" rx="3"/>
+            </g>
+            <path class="lp-slats" d="M94 319h22M94 327h22M127 319h22M127 327h22M160 319h22M160 327h22M193 319h22M193 327h22M226 319h22M226 327h22M259 319h22M259 327h22M292 319h22M292 327h22M325 319h22M325 327h22M358 319h22M358 327h22"/>
+            <g class="lp-box">
+              <rect x="98" y="316" width="14" height="14" rx="2.5"/>
+              <rect x="164" y="316" width="14" height="14" rx="2.5"/>
+              <rect x="197" y="316" width="14" height="14" rx="2.5"/>
+              <rect x="263" y="316" width="14" height="14" rx="2.5"/>
+              <rect x="296" y="316" width="14" height="14" rx="2.5"/>
+              <rect x="329" y="316" width="14" height="14" rx="2.5"/>
+            </g>
+            <path class="lp-tape" d="M107 78v16M133 78v16M159 78v16M211 78v16M263 78v16M289 78v16M315 78v16M341 78v16M107 138v16M133 138v16M159 138v16M185 138v16M211 138v16M263 138v16M315 138v16M341 138v16M367 138v16M107 198v16M133 198v16M185 198v16M211 198v16M263 198v16M289 198v16M315 198v16M367 198v16M107 258v16M159 258v16M185 258v16M211 258v16M263 258v16M289 258v16M341 258v16M367 258v16M105 316v14M171 316v14M204 316v14M270 316v14M303 316v14M336 316v14"/>
+
+            <!-- the RTO bay: returns already in their slots, and the empty slot the parcel is heading for -->
+            <rect class="lp-bay" x="414" y="136" width="108" height="116" rx="10"/>
+            <text class="lp-label lp-label-bay" x="431" y="155">RTO BAY</text>
+            <g class="lp-bay-box">
+              <rect x="431" y="164" width="18" height="18" rx="3"/>
+              <rect x="459" y="164" width="18" height="18" rx="3"/>
+              <rect x="487" y="192" width="18" height="18" rx="3"/>
+              <rect x="487" y="220" width="18" height="18" rx="3"/>
+            </g>
+            <g class="lp-bay-box lp-bay-box-soft">
+              <rect x="487" y="164" width="18" height="18" rx="3"/>
+              <rect x="459" y="192" width="18" height="18" rx="3"/>
+              <rect x="431" y="220" width="18" height="18" rx="3"/>
+            </g>
+            <g class="lp-slot">
+              <rect x="431.5" y="192.5" width="17" height="17" rx="3"/>
+              <rect x="459.5" y="220.5" width="17" height="17" rx="3"/>
+            </g>
+            <path class="lp-tape" d="M440 164v18M468 164v18M496 164v18M468 192v18M496 192v18M440 220v18M496 220v18"/>
+
+            <!-- the parcel's route, its destination, and the parcel itself -->
+            <use href="#lp-route" class="lp-trail" stroke="url(#lp-trail)"/>
+            <use href="#lp-route" class="lp-dots"/>
+            <circle class="lp-pulse" cx="440" cy="201" r="10"/>
+            <circle class="lp-dest" cx="440" cy="201" r="3"/>
+            <g class="lp-parcel">
+              <circle r="12" fill="#e4580b" opacity=".5" filter="url(#lp-blur)"/>
+              <rect x="-7" y="-7" width="14" height="14" rx="3" fill="#ff9a52"/>
+              <path d="M0-7v14" stroke="#12141c" stroke-opacity=".35" stroke-width="2"/>
+              <animateMotion dur="7s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;.78;1"><mpath href="#lp-route"/></animateMotion>
+              <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.05;.92;1" dur="7s" repeatCount="indefinite"/>
+            </g>
+          </svg>
+
+          <div class="login-event login-event-rto" aria-hidden="true">
+            <span class="login-event-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            </span>
+            <span><strong>RTO received</strong><small>AWB ••••4821 → RTO bay</small></span>
+          </div>
+          <div class="login-event login-event-match" aria-hidden="true">
+            <span class="login-event-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/></svg>
+            </span>
+            <span><strong>Matched with ERP</strong><small>Delivery Note · Completed</small></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="login-copy">
+        <p class="login-eyebrow">Warehouse operations</p>
+        <p class="login-headline">Every parcel,<br><span>accounted for.</span></p>
+        <p class="login-lede">Log RTO and damage entries, work through MDND checks and reconcile returns with the ERP, all in one portal.</p>
+        <ul class="login-features">
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/></svg>
+            RTO Process
+          </li>
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>
+            MDND checks
+          </li>
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg>
+            Reconciliation
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <main class="login-main">
+      <div class="login-panel">
+        <h1 class="login-title">Welcome back</h1>
+        <p class="login-hint">Sign in with your warehouse username and password.</p>
+
+        <form id="login-form" class="login-form" novalidate>
+          <div id="login-error" class="form-error hidden" role="alert"></div>
+
+          <div class="form-row">
+            <label for="login-username">Username</label>
+            <div class="login-field">
+              <svg class="login-field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+              <input type="text" id="login-username" name="username" placeholder="Your username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="255" required autofocus>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="login-password">Password</label>
+            <div class="login-field">
+              <svg class="login-field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              <input type="password" id="login-password" name="password" placeholder="Your password" autocomplete="current-password" maxlength="255" required>
+              <button type="button" id="btn-toggle-password" class="login-field-btn" aria-label="Show password" aria-pressed="false" title="Show password">
+                <svg class="icon-show" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="icon-hide" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.9 3.9M6.6 6.6A16.6 16.6 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg>
+              </button>
+            </div>
+            <!-- Filled by static/js/login.js while Caps Lock is on. -->
+            <p id="login-caps" class="login-caps" aria-live="polite"></p>
+          </div>
+
+          <button type="submit" id="btn-login" class="btn btn-primary login-submit">
+            <span id="btn-login-label">Sign in</span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </form>
+
+        <p class="login-help">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.6 3.4 8.3 8 9 4.6-.7 8-4.4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>Only warehouse staff can sign in. Forgot your password, or locked out after too many tries? Ask your warehouse admin.</span>
+        </p>
+      </div>
+      <p class="login-foot">Warehouse Power Portal · Internal tool</p>
+    </main>
+  </div>
+
+  <script src="js/login.js"></script>
+</body>
+</html>

@@ -7,7 +7,8 @@ Run locally (reads the SCM_DB_*, DN_DB_*, GOOGLE_* and DRIVE_* settings from .en
 then open http://localhost:5659 (interactive API docs at /docs).
 
 On a server, set IAP_AUDIENCE and put the panel behind Identity-Aware Proxy: until then it only
-answers requests from the machine it runs on (see security.py).
+answers requests from the machine it runs on (see security.py). Either way, everyone also signs
+in with a username and password from scm.warehouse_users (see auth.py).
 """
 import csv
 import io
@@ -22,9 +23,9 @@ from pathlib import Path
 from typing import Annotated
 
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI, Form, HTTPException, Query, UploadFile
+from fastapi import Body, Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.datastructures import Headers
@@ -32,6 +33,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import analytics
 import analytics_mdnd
+import auth
 import analytics_recon
 import analytics_status
 import daily_refresh
@@ -237,6 +239,60 @@ def _csv_download(name, columns, rows):
 @app.get("/rto-process", include_in_schema=False)
 def rto_process_panel():
     return RedirectResponse("/")  # the page's old address; static/index.html is now served at /
+
+
+# Sign-in (auth.py). security.Guard sends every other request without a session here.
+
+class Credentials(BaseModel):
+    username: str = ""
+    password: str = ""
+
+
+@app.get("/login", include_in_schema=False)
+def login_page(request: Request):
+    if auth.session_user(request.cookies.get(auth.COOKIE)):
+        return RedirectResponse("/", status_code=303)  # already signed in
+    return FileResponse(STATIC / "login.html")
+
+
+@app.post("/api/login")
+def login(creds: Credentials, request: Request, response: Response):
+    username = creds.username.strip()
+    if not username or not creds.password:
+        raise HTTPException(400, "Enter your username and password.")
+    if auth.locked_out(username):
+        raise HTTPException(429, "Too many wrong attempts. Please wait 15 minutes and try again.")
+    user = None
+    if len(username) <= auth.MAX_FIELD_LENGTH and len(creds.password) <= auth.MAX_FIELD_LENGTH:
+        try:
+            user = auth.check_password(username, creds.password)
+        except Exception:
+            traceback.print_exc()
+            raise HTTPException(503, "Could not check your sign-in right now. Please try again.")
+    if not user:
+        # One message for both: saying which was wrong would tell a stranger which usernames exist.
+        auth.note_failure(username)
+        print(f"[auth] wrong username or password for {username!r}", flush=True)
+        raise HTTPException(401, "Incorrect username or password.")
+    auth.clear_failures(username)
+    print(f"[auth] {user!r} signed in", flush=True)
+    response.set_cookie(
+        auth.COOKIE, auth.issue(user), max_age=auth.SESSION_HOURS * 3600, httponly=True, samesite="lax",
+        secure=bool(security.IAP_AUDIENCE) or request.url.scheme == "https",  # a local run is plain http
+    )
+    return {"username": user}
+
+
+@app.post("/api/logout")
+def logout(response: Response):
+    response.delete_cookie(auth.COOKIE, httponly=True, samesite="lax")
+    return {"signed_out": True}
+
+
+@app.get("/api/me")
+def me(request: Request):
+    """The signed-in warehouse user, for the top bar."""
+    return {"username": auth.session_user(request.cookies.get(auth.COOKIE))}
 
 
 @app.get("/api/status")

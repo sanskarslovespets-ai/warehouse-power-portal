@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+import auth  # noqa: E402
 import daily_refresh  # noqa: E402
 from daily_refresh import IST  # noqa: E402
 
@@ -110,7 +111,8 @@ def panel(monkeypatch):
     monkeypatch.setattr(main, "DB_CACHES", {"RTO Status": caches["rto_delivered"], "RTO MDND": caches["rto_mdnd"],
                                             "RTO Reconciliation": caches["rto_recon"]})
     monkeypatch.setattr(main, "_forced_at", {})
-    return types.SimpleNamespace(main=main, caches=caches, client=TestClient(main.app, client=LOCAL))
+    client = TestClient(main.app, client=LOCAL, cookies={auth.COOKIE: auth.issue("tester")})  # signed in
+    return types.SimpleNamespace(main=main, caches=caches, client=client)
 
 
 def test_data_status_lists_each_source_and_the_schedule(panel):

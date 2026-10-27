@@ -213,11 +213,13 @@ def client(env, monkeypatch):
         search_cached=lambda *a, **k: []))
     if "main" in sys.modules:
         del sys.modules["main"]
+    import auth
     import main
     from fastapi.testclient import TestClient
 
     monkeypatch.setattr(main.dropdown_cache, "refresh_cache_async", lambda: None)
-    return TestClient(main.app, client=("127.0.0.1", 50000))  # a local run answers loopback only
+    # a local run answers loopback only, and only once signed in
+    return TestClient(main.app, client=("127.0.0.1", 50000), cookies={auth.COOKIE: auth.issue("tester")})
 
 
 def test_download_holds_the_entries_behind_the_dashboard(env, client):

@@ -9,6 +9,9 @@ X-Goog-IAP-JWT-Assertion header. With IAP_AUDIENCE set, that JWT is verified her
 Without IAP_AUDIENCE (a local run) only requests from this machine are answered. A server started
 without it therefore fails closed: everyone else gets a 403, not the data.
 
+Past that, every request also needs the panel's own sign-in (auth.py: a warehouse_users username
+and password), except the sign-in page itself.
+
 Both middlewares also:
 - refuse cross-site writes (CSRF): a POST must come from this page, not another site the signed-in
   user happens to have open;
@@ -26,7 +29,10 @@ from google.auth import exceptions as google_auth_exceptions
 from google.auth import jwt as google_jwt
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
-from starlette.responses import JSONResponse
+from starlette.requests import HTTPConnection
+from starlette.responses import JSONResponse, RedirectResponse
+
+import auth
 
 # e.g. /projects/123456789/locations/asia-south1/services/rto-panel (Cloud Run with IAP), or
 # /projects/123456789/global/backendServices/987654321 (IAP on a load balancer). Blank = local run.
@@ -125,6 +131,13 @@ def cross_site_problem(method, headers):
     return None  # not sent by a browser (curl, a script): there is no signed-in session to ride on
 
 
+def _sign_in_first(scope):
+    """No session: opening a page goes to the sign-in page; an /api/ call (or a write) gets a 401."""
+    if scope["method"] in ("GET", "HEAD") and not scope["path"].startswith("/api/"):
+        return RedirectResponse("/login", status_code=303)
+    return JSONResponse({"error": "Please sign in."}, status_code=401)
+
+
 class Guard:
     """Answers 401/403 before the app sees a request from someone who may not use the panel."""
 
@@ -147,6 +160,12 @@ class Guard:
                 raise NotAllowed(403, "This panel only answers requests from this machine until IAP_AUDIENCE is set.")
         except NotAllowed as e:
             return await JSONResponse({"error": str(e)}, status_code=e.status)(scope, receive, send)
+
+        if scope["path"] not in auth.PUBLIC_PATHS:
+            account = auth.session_user(HTTPConnection(scope).cookies.get(auth.COOKIE))
+            if not account:
+                return await _sign_in_first(scope)(scope, receive, send)
+            user = f"{user} as {account}"
 
         if scope["method"] in SAFE_METHODS:
             return await self.app(scope, receive, send)

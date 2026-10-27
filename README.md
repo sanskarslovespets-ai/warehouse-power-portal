@@ -101,10 +101,39 @@ rename it if you want the app to fall back to `token.json`/OAuth instead.
 python3 main.py
 ```
 
-Open **http://localhost:5659** in a browser. It auto-reloads when a `.py` file
-changes; edits under `static/` just need a browser refresh. Every API endpoint
-is listed, and can be tried out, at **http://localhost:5659/docs** (local runs
-only — the docs are switched off once `IAP_AUDIENCE` is set).
+Open **http://localhost:5659** in a browser and sign in with a username and
+password from `scm.warehouse_users` (see *Sign-in* below). It auto-reloads when
+a `.py` file changes; edits under `static/` just need a browser refresh. Every
+API endpoint is listed, and can be tried out, at **http://localhost:5659/docs**
+once signed in (local runs only — the docs are switched off once `IAP_AUDIENCE`
+is set).
+
+### Sign-in
+
+Nothing in the panel opens without signing in: a page load goes to `/login`,
+an `/api/` call gets a 401. The username and password are checked against the
+**`warehouse_users`** table in the SCM database (`username`, `password`), so
+giving someone access, or taking it away, is a row in that table:
+
+```sql
+INSERT INTO warehouse_users (username, password) VALUES ('new.person', '<password>');
+DELETE FROM warehouse_users WHERE username = 'old.person';
+```
+
+- The username ignores case; the password must match exactly. A wrong username
+  and a wrong password get the same message ("Incorrect username or
+  password."), so the page doesn't reveal which usernames exist.
+- 5 wrong passwords for one username within 15 minutes lock that username for
+  15 minutes.
+- A sign-in lasts 12 hours (`SESSION_HOURS` in `auth.py`), or until **Sign
+  out** in the top bar. Removing a user or changing a password stops new
+  sign-ins at once; someone already signed in stays in until their 12 hours
+  are up.
+- The session is an HttpOnly cookie signed with `SESSION_SECRET`, so it can't
+  be forged or edited. Without that setting, everyone is signed out whenever
+  the server restarts.
+- Every sign-in and wrong attempt is logged (`[auth] ...`), and the audit log
+  of writes names the warehouse user.
 
 `python3 main.py` is shorthand for `python3 -m uvicorn main:app --reload --port 5659`.
 
@@ -141,11 +170,13 @@ is running at 9:00:
 
 ## 5. Running it on a server
 
-The panel has no login of its own: staff sign in through Google
-**Identity-Aware Proxy (IAP)**, and `security.py` checks IAP's signed token on
-every request. Until `IAP_AUDIENCE` is set, the app **only answers requests
-from the machine it runs on** — anyone else gets a 403 — so a server started
-without it fails closed instead of exposing the data.
+Two locks, one after the other. First, staff get through Google
+**Identity-Aware Proxy (IAP)** with their company account, and `security.py`
+checks IAP's signed token on every request. Until `IAP_AUDIENCE` is set, the
+app **only answers requests from the machine it runs on** — anyone else gets
+a 403 — so a server started without it fails closed instead of exposing the
+data. Then they sign in to the panel itself with a `warehouse_users` username
+and password (see *Sign-in* in section 3).
 
 1. Deploy it private (Cloud Run `--no-allow-unauthenticated`) and ask an owner
    to turn on IAP for it, allowing the company Google group/domain.
@@ -156,7 +187,10 @@ without it fails closed instead of exposing the data.
    `ALLOWED_EMAIL_DOMAINS=supertails.com,other.com`.
 3. Run without `--reload`:
    `python3 -m uvicorn main:app --host=0.0.0.0 --port=8080 --no-server-header`.
-4. Give it secrets through the platform (Secret Manager → env vars), never by
+4. Set `SESSION_SECRET` (the same value on every instance) so sign-ins
+   survive restarts and work whichever instance answers. Make one with
+   `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`.
+5. Give it secrets through the platform (Secret Manager → env vars), never by
    copying `.env` or `service_account.json` onto the server. `.dockerignore` /
    `.gcloudignore` keep those files, the SQLite DB and the cache files out of
    any image or upload.
@@ -166,7 +200,8 @@ What else is on, everywhere:
 - **Cross-site writes are refused** (403): a POST must come from the panel's
   own page, so another site open in the same browser can't submit entries or
   trigger refreshes as the signed-in user.
-- **Every write is logged** as `[audit] <email> POST <path> -> <status>`.
+- **Every write is logged** as `[audit] <email> as <warehouse user> POST <path> -> <status>`
+  (`local` in place of the email on a local run).
 - **Security headers** on every response: a Content-Security-Policy (scripts
   only from the panel itself), `X-Frame-Options: DENY`, `nosniff`, HSTS, and
   `Cache-Control: no-store` on `/api/*`.
@@ -213,8 +248,9 @@ whoever administers `analytics-db.supertails.com`).
 | `entries_store.py` | Local SQLite (`rto_entries.db`) — the source of truth for the All Entries tab |
 | `google_services.py` | Drive upload + Sheet append; uses `service_account.json` if present, else falls back to OAuth (`credentials.json` / `token.json`) |
 | `main.py` | FastAPI app: the `/api/*` endpoints, and serves `static/` (mounted last, at `/`) |
-| `security.py` | Who may use the panel (IAP token check, or this machine only), cross-site write blocking, audit log, security headers |
-| `static/` | Frontend: `index.html` + `css/` + `js/` — plain static files (vanilla HTML/CSS/JS, no templating, no build step) |
+| `security.py` | Who may use the panel (IAP token check, or this machine only, then a signed-in session), cross-site write blocking, audit log, security headers |
+| `auth.py` | The sign-in: username/password check against `scm.warehouse_users`, signed session cookies, lockout after repeated wrong passwords |
+| `static/` | Frontend: `index.html` + `login.html` + `css/` + `js/` — plain static files (vanilla HTML/CSS/JS, no templating, no build step) |
 | `archive/flask-version/` | The pre-FastAPI (Flask) `app.py`, template and tests, kept for reference |
 
 This follows the standard layout for internal portals (see
@@ -272,6 +308,12 @@ credentials and queries stay server-side and the page and API share one origin.
 
 - `python3 main.py` (auto-reload, bound to localhost) is meant for local use;
   for always-on or multi-user access, see section 5.
+- `warehouse_users.password` holds plain-text passwords, so anyone who can
+  read that table (or a DB backup) can sign in as anyone. Storing salted
+  hashes instead (and checking them in `auth.check_password`) would close
+  that; it means changing how rows are added to the table.
+- The 5-wrong-passwords lockout is counted per server process, so with
+  several Cloud Run instances an attacker gets 5 tries per instance.
 - On Cloud Run specifically, three things in this copy don't fit yet (the
   `analytics-scripts/services/rto_panel` copy already solves them): entries
   live in a local SQLite file that is lost whenever an instance is replaced,

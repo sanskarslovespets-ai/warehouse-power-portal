@@ -100,16 +100,12 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.01em; }
   color: #fff;
   letter-spacing: 0.01em;
 }
-.brand-mark {
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  background: var(--primary);
-  display: grid;
-  place-items: center;
-  color: #fff;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.12) inset, 0 4px 12px rgba(228, 88, 11, 0.45);
+/* The Supertails logo (its dark-background version, from supertails.com), then the panel's name */
+.brand-logo { display: block; flex-shrink: 0; width: auto; height: 28px; }
+.brand-name {
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  white-space: nowrap;
 }
 .brand-sub {
   font-weight: 300;
@@ -525,6 +521,7 @@ a.link:hover { text-decoration: underline; }
   color: var(--text);
 }
 .form-row input[type="text"],
+.form-row input[type="password"],
 .form-row input[type="date"],
 .form-row select,
 .form-row textarea,
@@ -1136,8 +1133,6 @@ a.link:hover { text-decoration: underline; }
 
 /* Hamburger + brand mark */
 .sidebar-toggle:active { transform: scale(0.9); }
-.brand-mark { transition: transform 0.4s var(--ease-out); }
-.brand:hover .brand-mark { transform: rotate(-10deg) scale(1.08); }
 
 /* Buttons: lift + ripple */
 .btn { position: relative; overflow: hidden; }
@@ -1262,3 +1257,309 @@ tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
 .panel-head .btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .panel-head .btn[hidden] { display: none; }
 #recon-table { min-width: 1700px; }
+
+/* ---------- Signed-in user + Sign out (top bar, static/js/session.js) ---------- */
+.topbar-account {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 14px;
+  border-left: 1px solid var(--ink-3);
+}
+.topbar-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 180px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-user::before {
+  content: "";
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+.topbar-user[hidden] { display: none; }
+
+/* ---------- Sign-in page (static/login.html) ----------
+   Left: a warehouse floor map (inline SVG, the .lp-* rules) on ink. Right: the form on warm paper.
+   Below 900px wide the left side shrinks to a band with the brand, above the form. */
+.login-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+
+/* Left: brand, floor map, pitch */
+.login-art {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 3vh, 32px);
+  padding: clamp(22px, 4.5vh, 44px) clamp(28px, 4vw, 60px);
+  overflow: hidden;
+  color: var(--ink-text);
+  background-color: var(--ink);
+  background-image:
+    radial-gradient(ellipse 55% 45% at 70% 40%, rgba(228, 88, 11, 0.15), transparent 70%),
+    radial-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  background-size: auto, 22px 22px;
+}
+.login-art .brand { animation: fade 0.5s ease-out both; }
+.login-art .brand-logo { height: 32px; }
+.login-map { flex: 1; display: grid; place-items: center; min-height: 0; }
+/* The map and the pitch below it share one column; 60vh keeps both on screen on a 720px-tall laptop. */
+.login-map-frame,
+.login-copy { width: min(100%, 560px, 60vh); margin: 0 auto; }
+.login-map-frame { position: relative; animation: rise 0.7s var(--ease-out) 0.1s both; }
+.login-map-svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* Two moments from the portal, floating over the map */
+.login-event {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 15px 9px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  background: rgba(27, 30, 41, 0.88);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+.login-event strong { display: block; color: #fff; font-size: 13px; font-weight: 700; line-height: 1.3; }
+.login-event small { display: block; color: var(--ink-muted); font-family: var(--font-mono); font-size: 11px; line-height: 1.45; }
+.login-event-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: #ff9a52;
+  background: rgba(228, 88, 11, 0.16);
+}
+.login-event-match .login-event-icon { color: #4ade80; background: rgba(74, 222, 128, 0.13); }
+.login-event-rto { top: -10%; right: -4%; animation: rise 0.6s var(--ease-out) 0.7s both, lp-float 6s ease-in-out 1.3s infinite; }
+.login-event-match { bottom: -8%; right: 3%; animation: rise 0.6s var(--ease-out) 0.9s both, lp-float 7.5s ease-in-out 1.5s infinite; }
+
+.login-copy { padding-left: 2.9%; } /* lines up with the building's wall (x 16 of the map's 560) */
+.login-copy > * { animation: rise 0.6s var(--ease-out) both; }
+.login-copy > :nth-child(1) { animation-delay: 0.22s; }
+.login-copy > :nth-child(2) { animation-delay: 0.3s; }
+.login-copy > :nth-child(3) { animation-delay: 0.38s; }
+.login-copy > :nth-child(4) { animation-delay: 0.46s; }
+.login-eyebrow {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f08a4b;
+}
+.login-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 2.2vw + 10px, 44px);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.025em;
+  color: #fff;
+}
+.login-headline span { font-weight: 300; color: var(--ink-muted); }
+.login-lede { margin: 14px 0 0; max-width: 52ch; font-size: 14.5px; line-height: 1.6; }
+.login-features { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
+.login-features li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 10px;
+  border: 1px solid var(--ink-3);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.login-features svg { color: #f08a4b; }
+
+/* The floor map's parts (static/login.html) */
+.lp-wall { fill: rgba(255, 255, 255, 0.025); stroke: rgba(255, 255, 255, 0.16); stroke-width: 1.5; }
+.lp-door { fill: rgba(255, 255, 255, 0.26); }
+.lp-door-live { fill: var(--primary); }
+.lp-label { font-family: var(--font-mono); font-size: 9px; font-weight: 500; letter-spacing: 0.16em; fill: var(--ink-muted); }
+.lp-label-bay { fill: #f08a4b; }
+.lp-rack { fill: rgba(255, 255, 255, 0.035); stroke: rgba(255, 255, 255, 0.13); }
+.lp-bins, .lp-slats { fill: none; stroke: rgba(255, 255, 255, 0.08); }
+.lp-pallet { fill: rgba(255, 255, 255, 0.02); stroke: rgba(255, 255, 255, 0.13); }
+.lp-box { fill: rgba(255, 255, 255, 0.14); }
+.lp-box-hi { fill: rgba(255, 255, 255, 0.26); }
+.lp-tape { fill: none; stroke: rgba(18, 20, 28, 0.3); stroke-width: 1.2; }
+.lp-bay { fill: rgba(228, 88, 11, 0.07); stroke: rgba(228, 88, 11, 0.6); stroke-dasharray: 4 4; }
+.lp-bay-box { fill: #ef6a1f; }
+.lp-bay-box-soft { fill: rgba(228, 88, 11, 0.42); }
+.lp-slot { fill: none; stroke: rgba(240, 138, 75, 0.55); stroke-dasharray: 3 3; }
+.lp-trail { fill: none; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+.lp-dots {
+  fill: none;
+  stroke: #ff9a52;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 0.01 9;
+  animation: lp-flow 0.9s linear infinite;
+}
+.lp-dest { fill: #ff9a52; }
+.lp-pulse {
+  fill: none;
+  stroke: #ff9a52;
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lp-pulse 2.4s var(--ease-out) infinite;
+}
+@keyframes lp-flow { to { stroke-dashoffset: -9.01; } }
+@keyframes lp-pulse { from { transform: scale(0.4); opacity: 1; } to { transform: scale(2); opacity: 0; } }
+@keyframes lp-float { 50% { transform: translateY(-6px); } }
+
+/* Right: the form */
+.login-main {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(22px, 4.5vh, 44px) clamp(20px, 4vw, 56px);
+  background: var(--card);
+}
+.login-panel { width: 100%; max-width: 392px; margin: auto; padding: 16px 0; }
+.login-panel > * { animation: rise 0.5s var(--ease-out) both; }
+.login-panel > :nth-child(2) { animation-delay: 0.06s; }
+.login-panel > :nth-child(3) { animation-delay: 0.12s; }
+.login-panel > :nth-child(4) { animation-delay: 0.18s; }
+.login-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.login-hint { margin: 8px 0 28px; color: var(--muted); font-size: 14.5px; }
+.login-form .form-row { margin-bottom: 18px; }
+.login-form .form-row label { font-size: 13px; }
+.login-field { position: relative; }
+.login-field-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9a9ca6;
+  pointer-events: none;
+  transition: color 0.15s;
+}
+.login-field:focus-within .login-field-icon { color: var(--primary); }
+.login-form .login-field input { height: 48px; padding: 0 14px 0 42px; border-radius: 11px; font-size: 15px; }
+.login-form .login-field input::placeholder { color: #a9aab3; }
+.login-form #login-password { padding-right: 48px; }
+.login-field-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #8a8c97;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.login-field-btn:hover { background: var(--hover); color: var(--text); }
+.login-field-btn .icon-hide,
+.login-field-btn[aria-pressed="true"] .icon-show { display: none; }
+.login-field-btn[aria-pressed="true"] .icon-hide { display: block; }
+.login-caps { margin: 0; }
+.login-caps:not(:empty) {
+  margin-top: 2px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.login-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 50px;
+  margin-top: 8px;
+  border-radius: 11px;
+  font-size: 15px;
+}
+.login-submit svg { transition: transform 0.2s var(--ease-out); }
+.login-submit:hover:not(:disabled) svg { transform: translateX(3px); }
+.login-submit.busy:disabled { background: var(--primary); box-shadow: none; cursor: progress; opacity: 0.85; }
+.login-submit.busy svg { display: none; }
+.login-submit.busy::before {
+  content: "";
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.login-help {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 28px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.login-help svg { flex-shrink: 0; margin-top: 1px; color: var(--success); }
+.login-foot { margin: 0; text-align: center; color: #9a9ca6; font-size: 12px; }
+
+@media (max-width: 900px) {
+  .login-page { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .login-art {
+    padding: 16px;
+    background-image:
+      radial-gradient(ellipse 60% 140% at 90% 0%, rgba(228, 88, 11, 0.2), transparent 70%),
+      radial-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  }
+  .login-art .brand-sub { display: inline; }
+  .login-map, .login-copy { display: none; }
+  .login-main { padding: 36px 16px 24px; }
+  .login-panel { margin: 0 auto auto; padding: 0 0 32px; }
+  .login-title { font-size: 30px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-parcel, .lp-pulse { display: none; }
+}
+
+@media (max-width: 700px) {
+  .topbar-account { padding-left: 10px; }
+  .topbar-user { display: none; }
+}
+@media (max-width: 480px) {
+  .topbar .brand-name { display: none; } /* a phone's top bar fits the logo and the buttons, not the name too */
+}
