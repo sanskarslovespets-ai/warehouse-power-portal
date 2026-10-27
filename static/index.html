@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warehouse Power Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@300;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button type="button" id="btn-toggle-sidebar" class="icon-btn sidebar-toggle" aria-label="Hide sidebar" aria-expanded="true" title="Hide sidebar">
+        <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+          <rect x="0" y="0" width="18" height="2" rx="1" fill="currentColor"></rect>
+          <rect x="0" y="6" width="18" height="2" rx="1" fill="currentColor"></rect>
+          <rect x="0" y="12" width="18" height="2" rx="1" fill="currentColor"></rect>
+        </svg>
+      </button>
+      <span class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
+        </span>
+        Warehouse Power <span class="brand-sub">Portal</span>
+      </span>
+      <!-- Filled by static/js/data_refresh.js from /api/data-status. -->
+      <div class="topbar-data">
+        <span id="data-freshness" class="data-freshness"></span>
+        <button type="button" id="btn-refresh-all" class="topbar-btn" aria-label="Refresh from DB" title="Re-pulls every dashboard's data from the databases now; takes a few minutes">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+          <span class="topbar-btn-label">Refresh from DB</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-body" id="app-body">
+    <aside class="sidebar" id="sidebar">
+      <!--
+        One .nav-group per area of the warehouse; its button opens and closes the list under it.
+        New section: copy a .side-nav-item into a group; its data-panel="x" opens <div id="panel-x" class="side-panel">.
+        New area: copy a whole .nav-group with its own data-group, aria-controls and id.
+      -->
+      <nav class="side-nav">
+        <div class="nav-group open" data-group="rto">
+          <button type="button" class="nav-group-toggle" aria-expanded="true" aria-controls="nav-group-rto">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            <span class="nav-group-name">RTO</span>
+            <svg class="nav-group-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="nav-group-items" id="nav-group-rto">
+            <div class="nav-group-inner">
+              <button class="side-nav-item active" data-panel="rto-analytics" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+                Analytics
+              </button>
+              <button class="side-nav-item" data-panel="rto-process" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/></svg>
+                Process
+              </button>
+              <button class="side-nav-item" data-panel="rto-status" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/></svg>
+                Status
+              </button>
+              <button class="side-nav-item" data-panel="rto-mdnd" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>
+                MDND
+              </button>
+              <button class="side-nav-item" data-panel="rto-recon" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg>
+                Reconciliation
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="content">
+    <div id="panel-rto-analytics" class="side-panel active">
+      <h2 class="panel-title">RTO Analytics</h2>
+      <div class="tabs" id="analytics-tabs" role="tablist">
+        <button class="tab-btn active" data-tab="analytics-process" role="tab" aria-selected="true" type="button">RTO Process</button>
+        <button class="tab-btn" data-tab="analytics-status" role="tab" aria-selected="false" type="button">RTO Status</button>
+        <button class="tab-btn" data-tab="analytics-mdnd" role="tab" aria-selected="false" type="button">RTO MDND</button>
+        <button class="tab-btn" data-tab="analytics-recon" role="tab" aria-selected="false" type="button">RTO Reconciliation</button>
+      </div>
+
+      <section id="tab-analytics-process" class="tab-panel active">
+        <div class="analytics-filters">
+          <div class="date-range-control">
+            <button type="button" id="date-range-trigger" class="filter-trigger" aria-haspopup="true" aria-expanded="false">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+              <span id="date-range-label">Last 30 days</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div id="date-range-popover" class="date-range-popover hidden">
+              <div class="date-range-presets">
+                <button type="button" class="preset-row" data-preset="today">Today</button>
+                <button type="button" class="preset-row" data-preset="7d">Last 7 days</button>
+                <button type="button" class="preset-row active" data-preset="30d">Last 30 days</button>
+                <button type="button" class="preset-row" data-preset="90d">Last 90 days</button>
+                <button type="button" class="preset-row" data-preset="mtd">Month to date</button>
+                <button type="button" class="preset-row" data-preset="all">All time</button>
+              </div>
+              <div class="date-range-custom">
+                <label>From<input type="date" id="range-from"></label>
+                <label>To<input type="date" id="range-to"></label>
+                <button type="button" id="btn-apply-custom-range" class="btn btn-primary btn-sm">Apply range</button>
+              </div>
+            </div>
+          </div>
+          <select id="date-field-select" class="dimension-select" aria-label="Date to analyse by">
+            <option value="damage_marked_date">By: Damage marked date</option>
+            <option value="received_date">By: RTO/RPU received date</option>
+            <option value="created_at">By: Logged at</option>
+          </select>
+          <select id="an-filter-type" class="dimension-select" aria-label="Damage type">
+            <option value="">All damage types</option>
+            <option value="RTO">RTO</option>
+            <option value="RPU">RPU</option>
+            <option value="WH Damage">WH Damage</option>
+            <option value="Inward Damage">Inward Damage</option>
+          </select>
+          <select id="an-filter-facility" class="dimension-select" aria-label="Facility"><option value="">All facilities</option></select>
+          <select id="an-filter-courier" class="dimension-select" aria-label="Courier"><option value="">All couriers</option></select>
+          <button type="button" id="btn-an-clear" class="btn btn-secondary btn-sm">Clear filters</button>
+          <button type="button" id="btn-refresh-analytics" class="btn btn-secondary btn-sm">Refresh</button>
+          <a id="btn-an-download" class="btn btn-secondary btn-sm" href="/api/analytics/export" title="Downloads the entries behind these charts">Download CSV</a>
+        </div>
+
+        <div id="analytics-empty" class="empty-hint hidden">No entries match these filters. Try a wider date range or clear a filter.</div>
+
+        <div id="analytics-body" class="analytics-body">
+          <div class="kpi-row" id="kpi-row"></div>
+          <div class="chart-card trend-card" id="card-trend"></div>
+          <div class="chart-card trend-card" id="card-trend-facility"></div>
+          <div class="chart-grid">
+            <div class="chart-card" id="card-type"></div>
+            <div class="chart-card" id="card-facility"></div>
+            <div class="chart-card" id="card-courier"></div>
+            <div class="chart-card" id="card-sku"></div>
+            <div class="chart-card span-2" id="card-matrix"></div>
+            <div class="chart-card" id="card-lag"></div>
+            <div class="chart-card" id="card-coverage"></div>
+            <div class="chart-card" id="card-checks"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- The three tabs below are filled in by static/js/analytics_dashboards.js when first opened. -->
+      <section id="tab-analytics-status" class="tab-panel"></section>
+      <section id="tab-analytics-mdnd" class="tab-panel"></section>
+      <section id="tab-analytics-recon" class="tab-panel"></section>
+    </div>
+
+    <div id="panel-rto-process" class="side-panel">
+      <div class="panel-head">
+        <h2 class="panel-title">RTO Process</h2>
+        <!-- Shown by static/js/app.js once /api/status returns the sheet's URL (GOOGLE_SHEET_ID in .env). -->
+        <a id="link-sheet" class="btn btn-secondary" target="_blank" rel="noopener noreferrer" hidden>Go to sheet
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
+        </a>
+      </div>
+
+    <section id="tab-entries" class="tab-panel active">
+      <div id="banner-entries" class="banner hidden"></div>
+      <div class="panel-toolbar">
+        <button id="btn-new-entry" class="btn btn-primary">+ New Entry</button>
+        <button id="btn-refresh-entries" class="btn btn-secondary">Refresh</button>
+        <button type="button" id="btn-entries-download" class="btn btn-secondary" title="Downloads the entries matching the filters below">Download CSV</button>
+        <button id="btn-sync-sheet" class="btn btn-secondary hidden">Sync to Google Sheet</button>
+        <span id="entries-count" class="muted"></span>
+      </div>
+
+      <div class="entries-filters">
+        <input type="text" id="entries-search" class="entries-search-input" placeholder="Search AWB, SKU, facility, courier, remarks…">
+        <select id="filter-damage-type" class="dimension-select">
+          <option value="">All damage types</option>
+          <option value="RTO">RTO</option>
+          <option value="RPU">RPU</option>
+          <option value="WH Damage">WH Damage</option>
+          <option value="Inward Damage">Inward Damage</option>
+        </select>
+        <select id="filter-facility" class="dimension-select"><option value="">All facilities</option></select>
+        <select id="filter-courier" class="dimension-select"><option value="">All couriers</option></select>
+        <select id="filter-sync" class="dimension-select">
+          <option value="">All sync status</option>
+          <option value="synced">Synced</option>
+          <option value="pending">Pending</option>
+        </select>
+        <label class="entries-date-filter">From<input type="date" id="filter-date-from"></label>
+        <label class="entries-date-filter">To<input type="date" id="filter-date-to"></label>
+        <button type="button" id="btn-clear-filters" class="btn btn-secondary btn-sm">Clear filters</button>
+      </div>
+
+      <div class="table-wrap">
+        <table id="entries-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Damage Marked</th>
+              <th>RTO/RPU Received</th>
+              <th>Facility</th>
+              <th>Damage Type</th>
+              <th>AWB Code</th>
+              <th>SKU Code</th>
+              <th>POD</th>
+              <th>Video</th>
+              <th>Courier</th>
+              <th>Remarks</th>
+              <th>Sheet</th>
+              <th>Logged At</th>
+            </tr>
+          </thead>
+          <tbody id="entries-tbody"></tbody>
+        </table>
+        <p id="entries-empty" class="empty-hint hidden">No entries yet.</p>
+      </div>
+    </section>
+    </div>
+
+    <div id="panel-rto-status" class="side-panel">
+      <h2 class="panel-title">RTO Status</h2>
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="rto-delivered" role="tab" aria-selected="true">RTO Delivered</button>
+      </div>
+
+      <section id="tab-rto-delivered" class="tab-panel active">
+        <div id="banner-delivered" class="banner hidden"></div>
+        <div class="panel-toolbar">
+          <button type="button" id="btn-delivered-refresh" class="btn btn-secondary" title="Re-runs both queries; the Delivery Note status query takes about 5 minutes">Refresh from DB</button>
+          <a id="btn-delivered-export" class="btn btn-secondary" href="/api/rto-delivered/export" title="Downloads every row matching the filters below">Download CSV</a>
+          <span id="delivered-count" class="muted"></span>
+          <span id="delivered-updated" class="muted"></span>
+        </div>
+
+        <div class="entries-filters">
+          <input type="text" id="delivered-search" class="entries-search-input" placeholder="Search AWB, courier, facility, city, remark, status…">
+          <select id="delivered-return-name" class="dimension-select"><option value="">All return names</option></select>
+          <select id="delivered-status" class="dimension-select"><option value="">All statuses</option></select>
+          <label class="entries-date-filter">RTO Delivery From<input type="date" id="delivered-date-from"></label>
+          <label class="entries-date-filter">To<input type="date" id="delivered-date-to"></label>
+          <button type="button" id="btn-delivered-clear" class="btn btn-secondary btn-sm">Clear filters</button>
+        </div>
+
+        <div class="kpi-row delivered-kpis" id="delivered-kpis"></div>
+
+        <div class="table-wrap">
+          <table id="delivered-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>AWB</th>
+                <th>Status</th>
+                <th>Courier Partner</th>
+                <th>Return Name</th>
+                <th>RTO Delivery Date</th>
+                <th>Created At</th>
+                <th>Pickup Date</th>
+                <th>Latest Remark</th>
+                <th>Return City</th>
+              </tr>
+            </thead>
+            <tbody id="delivered-tbody"></tbody>
+          </table>
+          <p id="delivered-empty" class="empty-hint hidden">No RTO Delivered rows match these filters.</p>
+        </div>
+        <div class="panel-toolbar">
+          <button type="button" id="btn-delivered-more" class="btn btn-secondary hidden">Load more</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="panel-rto-mdnd" class="side-panel">
+      <h2 class="panel-title">RTO MDND</h2>
+      <div class="tabs" id="mdnd-tabs" role="tablist"></div>
+
+      <section class="tab-panel active">
+        <div id="banner-mdnd" class="banner hidden"></div>
+        <div class="panel-toolbar">
+          <button type="button" id="btn-mdnd-refresh" class="btn btn-secondary" title="Re-runs both queries; the Delivery Note query can take several minutes">Refresh from DB</button>
+          <button type="button" id="btn-mdnd-download" class="btn btn-secondary" title="Downloads this warehouse's rows matching the filters below, with what has been typed in">Download CSV</button>
+          <span id="mdnd-count" class="muted"></span>
+          <span id="mdnd-updated" class="muted"></span>
+        </div>
+
+        <div class="entries-filters">
+          <select id="mdnd-filled" class="dimension-select" aria-label="Filter by filled status">
+            <option value="">All entries</option>
+            <option value="unfilled">Not filled</option>
+            <option value="filled">Filled</option>
+          </select>
+          <select id="mdnd-f-courier" class="dimension-select" aria-label="Courier"><option value="">All couriers</option></select>
+          <select id="mdnd-f-reason" class="dimension-select mdnd-reason-select" aria-label="RTO reason"><option value="">All reasons</option></select>
+          <select id="mdnd-f-received_at_wh" class="dimension-select" aria-label="Received at WH?"><option value="">Received at WH? (all)</option></select>
+          <select id="mdnd-f-condition" class="dimension-select" aria-label="Condition"><option value="">All conditions</option></select>
+          <label class="entries-date-filter">Received Date From<input type="date" id="mdnd-f-received-from"></label>
+          <label class="entries-date-filter">To<input type="date" id="mdnd-f-received-to"></label>
+          <label class="entries-date-filter">Date Updated From<input type="date" id="mdnd-f-updated-from"></label>
+          <label class="entries-date-filter">To<input type="date" id="mdnd-f-updated-to"></label>
+          <button type="button" id="btn-mdnd-clear" class="btn btn-secondary btn-sm">Clear filters</button>
+        </div>
+
+        <div class="table-wrap">
+          <table id="mdnd-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>AWB</th>
+                <th>Received On</th>
+                <th>Marked On</th>
+                <th>Days to Receipt</th>
+                <th>Courier</th>
+                <th>Warehouse</th>
+                <th>Order ID</th>
+                <th>Drop City</th>
+                <th>RTO Reason</th>
+                <th>Net Value</th>
+                <th>Received at WH?</th>
+                <th>Received Date</th>
+                <th>Condition</th>
+                <th>Discrepancy Notes</th>
+                <th>Checked By</th>
+                <th>Date Updated</th>
+              </tr>
+            </thead>
+            <tbody id="mdnd-tbody"></tbody>
+          </table>
+          <p id="mdnd-empty" class="empty-hint hidden">No matching AWBs for this warehouse.</p>
+        </div>
+        <div class="panel-toolbar">
+          <button type="button" id="btn-mdnd-more" class="btn btn-secondary hidden">Load more</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="panel-rto-recon" class="side-panel">
+      <h2 class="panel-title">RTO Reconciliation</h2>
+      <div id="banner-recon" class="banner hidden"></div>
+      <div class="panel-toolbar">
+        <button type="button" id="btn-recon-refresh" class="btn btn-secondary">Refresh from DB</button>
+        <a id="btn-recon-download" class="btn btn-secondary" href="/api/rto-recon/export" title="Downloads every row matching the filters below">Download CSV</a>
+        <span id="recon-count" class="muted"></span>
+        <span id="recon-updated" class="muted"></span>
+      </div>
+
+      <!-- Each dropdown is filled by static/js/rto_recon.js with the values in the data and their AWB counts. -->
+      <div class="entries-filters">
+        <input type="text" id="recon-search" class="entries-search-input" placeholder="Search AWB, reference no., pincode…">
+        <select id="recon-courier" class="dimension-select" aria-label="Courier"><option value="">All couriers</option></select>
+        <select id="recon-return-name" class="dimension-select" aria-label="Return name"><option value="">All return names</option></select>
+        <select id="recon-erp-status" class="dimension-select" aria-label="ERP status"><option value="">All ERP statuses</option></select>
+        <select id="recon-age" class="dimension-select" aria-label="Days since RTO marked"><option value="">Any age</option></select>
+        <select id="recon-date-field" class="dimension-select" aria-label="Date to filter by">
+          <option value="rto_mark_date">By: RTO mark date</option>
+          <option value="created_at">By: Created at</option>
+          <option value="pickup_date">By: Pickup date</option>
+        </select>
+        <label class="entries-date-filter">From<input type="date" id="recon-date-from"></label>
+        <label class="entries-date-filter">To<input type="date" id="recon-date-to"></label>
+        <button type="button" id="btn-recon-clear" class="btn btn-secondary btn-sm">Clear filters</button>
+      </div>
+
+      <div class="table-wrap">
+        <table id="recon-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Status</th>
+              <th>Courier Partner</th>
+              <th>AWB</th>
+              <th>Return Name</th>
+              <th>Created At</th>
+              <th>Pickup Date</th>
+              <th>Reference Number</th>
+              <th>Pickup Pincode</th>
+              <th>Drop Pincode</th>
+              <th>RTO Mark Date</th>
+              <th>RTO Delivery Date</th>
+              <th>RTO Date Diff</th>
+              <th>ERP Status</th>
+            </tr>
+          </thead>
+          <tbody id="recon-tbody"></tbody>
+        </table>
+        <p id="recon-empty" class="empty-hint hidden">No rows match these filters.</p>
+      </div>
+      <div class="panel-toolbar">
+        <button type="button" id="btn-recon-more" class="btn btn-secondary hidden">Load more</button>
+      </div>
+    </div>
+    </main>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>New RTO Entry</h2>
+        <button id="btn-close-modal" class="icon-btn" type="button" aria-label="Close">&times;</button>
+      </div>
+      <form id="entry-form" class="modal-body" novalidate>
+        <div id="form-error" class="form-error hidden"></div>
+
+        <div class="form-row">
+          <label for="f-damage-marked-date">Date (Damage marked)</label>
+          <input type="date" id="f-damage-marked-date" name="damage_marked_date" required>
+        </div>
+
+        <div class="form-row">
+          <label for="f-received-date">Date (RTO/RPU received)</label>
+          <input type="date" id="f-received-date" name="received_date" required>
+        </div>
+
+        <div class="form-row">
+          <label for="f-facility">Facility Name</label>
+          <div class="combo" data-combo="facility">
+            <input type="text" id="f-facility" name="facility_name" autocomplete="off" placeholder="Select facility" required>
+            <div class="combo-list hidden"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label for="f-damage-type">Damage Type</label>
+          <select id="f-damage-type" name="damage_type" required>
+            <option value="" disabled selected>Select damage type</option>
+            <option value="RTO">RTO</option>
+            <option value="RPU">RPU</option>
+            <option value="WH Damage">WH Damage</option>
+            <option value="Inward Damage">Inward Damage</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label for="f-awb">AWB Code</label>
+          <div class="combo" data-combo="awb">
+            <input type="text" id="f-awb" name="awb_code" autocomplete="off" placeholder="Type to search AWB" required>
+            <div class="combo-list hidden"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label for="f-sku">SKU Code</label>
+          <div class="combo" data-combo="sku">
+            <input type="text" id="f-sku" name="sku_code" autocomplete="off" placeholder="Select SKU" required>
+            <div class="combo-list hidden"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label for="f-pod">Please upload the POD</label>
+          <input type="file" id="f-pod" name="pod_file" accept="image/*,.pdf" required>
+        </div>
+
+        <div class="form-row">
+          <label for="f-video">Please upload the video</label>
+          <input type="file" id="f-video" name="video_file" accept="video/*" required>
+        </div>
+
+        <div class="form-row">
+          <label for="f-courier">Courier Name</label>
+          <div class="combo" data-combo="courier">
+            <input type="text" id="f-courier" name="courier_name" autocomplete="off" placeholder="Select courier" required>
+            <div class="combo-list hidden"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label for="f-remarks">Remarks</label>
+          <textarea id="f-remarks" name="remarks" rows="3" placeholder="Optional"></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btn-cancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="btn-submit" class="btn btn-primary">Save Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/csv.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/analytics_kit.js"></script>
+  <script src="js/rto_analytics.js"></script>
+  <script src="js/analytics_dashboards.js"></script>
+  <script src="js/rto_delivered.js"></script>
+  <script src="js/rto_mdnd.js"></script>
+  <script src="js/rto_recon.js"></script>
+  <script src="js/data_refresh.js"></script>
+  <script src="js/motion.js"></script>
+</body>
+</html>
