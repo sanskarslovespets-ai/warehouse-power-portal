@@ -3,6 +3,8 @@ people already signed in. conftest.py stands in for the user tables ("tester" an
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pymysql.constants import ER
+from pymysql.err import OperationalError
 
 import security
 import users
@@ -184,6 +186,22 @@ def test_the_users_page_refuses_bad_changes(main, accounts):
     accounts.add("eddie", "editor-pass", "editor", list(users.TABS))
     eddie = client(main.app, accounts, "eddie")
     assert eddie.get("/api/users").status_code == 403 and eddie.post("/api/users", json={}).status_code == 403
+
+
+def test_a_database_account_that_may_not_write_users_is_named(main, accounts, monkeypatch):
+    def refused(error):
+        def save(*args, **kwargs):
+            raise error
+        monkeypatch.setattr(users, "_save", save)
+        r = client(main.app, accounts, "tester").post(
+            "/api/users", json={"username": "new.person", "password": "long-enough", "role": "viewer", "tabs": []}
+        )
+        return r.status_code, r.json()["error"]
+
+    denied = OperationalError(ER.TABLEACCESS_DENIED_ERROR, "INSERT command denied to user 'x'@'%' for table 'warehouse_users'")
+    status, error = refused(denied)
+    assert status == 503 and "isn't allowed to change users" in error and "scm.warehouse_users" in error
+    assert refused(OperationalError(2013, "Lost connection")) == (503, "Could not save the change to the database. Please try again.")
 
 
 def test_changing_your_own_password_keeps_you_signed_in(main, accounts):

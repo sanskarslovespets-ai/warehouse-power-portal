@@ -26,7 +26,7 @@ import time
 from dataclasses import dataclass
 
 from pymysql.constants import ER
-from pymysql.err import ProgrammingError
+from pymysql.err import OperationalError, ProgrammingError
 
 import auth
 from rto_process import get_scm_connection
@@ -288,6 +288,11 @@ _ONE = " WHERE u.username = %s COLLATE utf8mb4_bin"
 
 def _no_access_table(error):
     return isinstance(error, ProgrammingError) and error.args[0] == ER.NO_SUCH_TABLE
+
+
+def not_permitted(error):
+    """True if MySQL refused a change because the panel's database account lacks the privilege for it."""
+    return isinstance(error, OperationalError) and error.args[0] in (ER.TABLEACCESS_DENIED_ERROR, ER.DBACCESS_DENIED_ERROR)
 
 
 def _rows(username=None):
