@@ -7,7 +7,9 @@ X-Goog-IAP-JWT-Assertion header. With IAP_AUDIENCE set, that JWT is verified her
 `--allow-unauthenticated` deploy can't quietly open the panel to the internet.
 
 Without IAP_AUDIENCE (a local run) only requests from this machine are answered. A server started
-without it therefore fails closed: everyone else gets a 403, not the data.
+without it therefore fails closed: everyone else gets a 403, not the data. A server that is not
+behind IAP yet can set ALLOW_WITHOUT_IAP=1 instead: then anyone can reach the sign-in page, and the
+panel's own sign-in below is the only lock. IAP_AUDIENCE wins when both are set.
 
 Past that, every request also needs the panel's own sign-in (auth.py: a warehouse_users username
 and password), except the sign-in page itself, and an /api/ call must be for a tab the user's role
@@ -40,6 +42,8 @@ import users
 # e.g. /projects/123456789/locations/asia-south1/services/rto-panel (Cloud Run with IAP), or
 # /projects/123456789/global/backendServices/987654321 (IAP on a load balancer). Blank = local run.
 IAP_AUDIENCE = os.environ.get("IAP_AUDIENCE", "").strip()
+# A server not behind IAP (yet): skip the IAP check and rely on the panel's own sign-in alone.
+ALLOW_WITHOUT_IAP = os.environ.get("ALLOW_WITHOUT_IAP", "").strip().lower() in ("1", "true", "yes")
 ALLOWED_EMAIL_DOMAINS = {
     d.strip().lower() for d in os.environ.get("ALLOWED_EMAIL_DOMAINS", "supertails.com").split(",") if d.strip()
 }
@@ -114,6 +118,11 @@ def verify_iap(token):
     return email
 
 
+def on_server():
+    """True on a server (IAP, or ALLOW_WITHOUT_IAP), False on a local run."""
+    return bool(IAP_AUDIENCE) or ALLOW_WITHOUT_IAP
+
+
 def _is_loopback(host):
     try:
         return ipaddress.ip_address(host).is_loopback
@@ -157,10 +166,14 @@ class Guard:
                 raise NotAllowed(403, problem)
             if IAP_AUDIENCE:
                 user = await run_in_threadpool(verify_iap, headers.get("x-goog-iap-jwt-assertion", ""))
+            elif ALLOW_WITHOUT_IAP:
+                user = "web"
             elif _is_loopback((scope.get("client") or ("", 0))[0]):
                 user = "local"
             else:
-                raise NotAllowed(403, "This panel only answers requests from this machine until IAP_AUDIENCE is set.")
+                raise NotAllowed(
+                    403, "This panel only answers requests from this machine until IAP_AUDIENCE or ALLOW_WITHOUT_IAP is set."
+                )
         except NotAllowed as e:
             return await JSONResponse({"error": str(e)}, status_code=e.status)(scope, receive, send)
 

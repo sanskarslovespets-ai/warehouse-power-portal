@@ -133,6 +133,23 @@ def test_local_requests_still_need_iap_once_it_is_on(app, signed_in, iap):
     assert signed_in(app).get("/api/ping").status_code == 401
 
 
+# ------------------------------------------------------------------ on a server without IAP
+
+def test_without_iap_the_panel_sign_in_is_the_only_lock(app, signed_in, monkeypatch, capsys):
+    monkeypatch.setattr(security, "ALLOW_WITHOUT_IAP", True)
+    assert signed_in(app, REMOTE).get("/api/ping").status_code == 200
+    assert TestClient(app, client=REMOTE).get("/api/ping").status_code == 401  # no session
+    assert signed_in(app, REMOTE).post("/api/write", headers={"Origin": "https://evil.example"}).status_code == 403
+    signed_in(app, REMOTE).post("/api/write")
+    assert "[audit] web as wh.user POST /api/write -> 200" in capsys.readouterr().out
+
+
+def test_iap_still_decides_when_both_are_set(app, signed_in, iap, monkeypatch):
+    monkeypatch.setattr(security, "ALLOW_WITHOUT_IAP", True)
+    assert signed_in(app, REMOTE).get("/api/ping").status_code == 401
+    assert signed_in(app, REMOTE).get("/api/ping", headers=iap()).status_code == 200
+
+
 # ------------------------------------------------------------------ main.py
 
 @pytest.fixture()
@@ -303,3 +320,15 @@ def test_sign_in_cannot_be_posted_from_another_site(main, sanskar):
 def test_session_cookie_is_https_only_on_a_server(main, sanskar, iap):
     r = sign_in(TestClient(main.app, client=REMOTE, headers=iap()))
     assert r.status_code == 200 and "secure" in r.headers["set-cookie"].lower()
+
+
+def test_without_iap_the_sign_in_page_opens_from_anywhere(main, sanskar, monkeypatch):
+    monkeypatch.setattr(security, "ALLOW_WITHOUT_IAP", True)
+    c = TestClient(main.app, client=REMOTE, base_url="https://testserver", follow_redirects=False)
+    page = c.get("/")
+    assert page.status_code == 303 and page.headers["location"] == "/login"
+    assert 'id="login-form"' in c.get("/login").text
+    r = sign_in(c)
+    # Cloud Run hands the app plain http behind Google's HTTPS, so the cookie must be marked secure anyway
+    assert r.status_code == 200 and "secure" in r.headers["set-cookie"].lower()
+    assert c.get("/").status_code == 200

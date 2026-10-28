@@ -108,7 +108,7 @@ password from `scm.warehouse_users` (see *Sign-in* below). It auto-reloads when
 a `.py` file changes; edits under `static/` just need a browser refresh. Every
 API endpoint is listed, and can be tried out, at **http://localhost:5659/docs**
 once signed in (local runs only — the docs are switched off once `IAP_AUDIENCE`
-is set).
+or `ALLOW_WITHOUT_IAP` is set).
 
 ### Sign-in
 
@@ -258,6 +258,13 @@ a 403 — so a server started without it fails closed instead of exposing the
 data. Then they sign in to the panel itself with a `warehouse_users` username
 and password (see *Sign-in* in section 3).
 
+**Not behind IAP yet?** Set `ALLOW_WITHOUT_IAP=1` instead of `IAP_AUDIENCE`.
+Anyone can then reach the sign-in page, and the panel's own sign-in is the
+only lock. That is how the Cloud Run service `warehouse-portal` runs today
+(`cloudbuild.yaml`): with `IAP_AUDIENCE` set but IAP not switched on for the
+service, every request answered `{"error":"Sign-in required."}`. Once IAP is
+on, swap the setting back; `IAP_AUDIENCE` wins if both are set.
+
 1. Deploy it private (Cloud Run `--no-allow-unauthenticated`) and ask an owner
    to turn on IAP for it, allowing the company Google group/domain.
 2. Set `IAP_AUDIENCE` to the IAP audience of that service — for Cloud Run with
@@ -282,7 +289,7 @@ What else is on, everywhere:
   own page, so another site open in the same browser can't submit entries or
   trigger refreshes as the signed-in user.
 - **Every write is logged** as `[audit] <email> as <warehouse user> POST <path> -> <status>`
-  (`local` in place of the email on a local run).
+  (`local` in place of the email on a local run, `web` with `ALLOW_WITHOUT_IAP`).
 - **Security headers** on every response: a Content-Security-Policy (scripts
   only from the panel itself), `X-Frame-Options: DENY`, `nosniff`, HSTS, and
   `Cache-Control: no-store` on `/api/*`.

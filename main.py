@@ -6,9 +6,10 @@ Run locally (reads the SCM_DB_*, DN_DB_*, GOOGLE_* and DRIVE_* settings from .en
 
 then open http://localhost:5659 (interactive API docs at /docs).
 
-On a server, set IAP_AUDIENCE and put the panel behind Identity-Aware Proxy: until then it only
-answers requests from the machine it runs on (see security.py). Either way, everyone also signs
-in with a username and password from scm.warehouse_users (see auth.py).
+On a server, set IAP_AUDIENCE and put the panel behind Identity-Aware Proxy, or set
+ALLOW_WITHOUT_IAP=1 while it isn't: until one is set it only answers requests from the machine it
+runs on (see security.py). Either way, everyone also signs in with a username and password from
+scm.warehouse_users (see auth.py).
 """
 import csv
 import gzip
@@ -127,7 +128,7 @@ def _daily_refresh():
 
 
 # The API docs (/docs, /redoc, /openapi.json) map every endpoint: local runs only.
-app = FastAPI(title="Warehouse Power Portal", lifespan=lifespan, openapi_url=None if security.IAP_AUDIENCE else "/openapi.json")
+app = FastAPI(title="Warehouse Power Portal", lifespan=lifespan, openapi_url=None if security.on_server() else "/openapi.json")
 
 
 class LimitUploadSize:
@@ -269,7 +270,7 @@ def _access(request):
 def _start_session(request, response, username, password):
     response.set_cookie(
         auth.COOKIE, auth.issue(username, auth.seal(password)), max_age=auth.SESSION_HOURS * 3600, httponly=True,
-        samesite="lax", secure=bool(security.IAP_AUDIENCE) or request.url.scheme == "https",  # a local run is plain http
+        samesite="lax", secure=security.on_server() or request.url.scheme == "https",  # a local run is plain http
     )
 
 

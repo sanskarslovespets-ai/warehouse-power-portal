@@ -20,16 +20,22 @@ steps:
     name: gcr.io/cloud-builders/docker
     args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}']
 
-  # Private service (no --allow-unauthenticated); staff reach it through IAP, which is enabled on
-  # the service once and kept across deploys. IAP_AUDIENCE makes security.py verify IAP's token,
-  # so until IAP is on every request gets {"error":"Sign-in required."}. One-time setup:
+  # IAP is not on for this service yet, so ALLOW_WITHOUT_IAP=1: anyone can reach the sign-in page and
+  # the panel's own warehouse_users sign-in is the only lock (security.py). With IAP_AUDIENCE set
+  # instead, every request without IAP's token got {"error":"Sign-in required."}. This deploy leaves
+  # the service's invoker access as it is (no --[no-]allow-unauthenticated), which today lets the
+  # sign-in page be reached. To move behind IAP later, run once:
   #   gcloud run services update warehouse-portal --region=asia-south1 --iap --invoker-iam-check
   #   gcloud iap web add-iam-policy-binding --region=asia-south1 --resource-type=cloud-run \
   #     --service=warehouse-portal --member=domain:supertails.com --role=roles/iap.httpsResourceAccessor
+  # then swap ALLOW_WITHOUT_IAP=1 below for
+  # IAP_AUDIENCE=/projects/${PROJECT_NUMBER}/locations/${_REGION}/services/${_SERVICE}.
   # min-instances=1 + no-cpu-throttling keep the 9:00 IST refresh thread alive; max-instances=1
   # because entries live in a per-instance SQLite file and each instance would re-scan the DBs.
-  # SESSION_SECRET signs the panel's own sign-in cookie (auth.py), so sessions survive restarts;
   # ADMIN_USERS are the warehouse_users usernames who always manage roles on the Users page.
+  # Without SESSION_SECRET everyone is signed out on each deploy or restart; once the Secret Manager
+  # secret warehouse-portal-session-secret exists (readable by the runtime SA), add
+  # SESSION_SECRET=warehouse-portal-session-secret:latest to --set-secrets.
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: gcloud
@@ -40,7 +46,6 @@ steps:
       - --region=${_REGION}
       - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
       - --service-account=${_RUNTIME_SA}
-      - --no-allow-unauthenticated
       - --network=${_NETWORK}
       - --subnet=${_SUBNET}
       - --vpc-egress=private-ranges-only
@@ -49,8 +54,8 @@ steps:
       - --no-cpu-throttling
       - --memory=2Gi
       - --cpu=1
-      - --set-env-vars=IAP_AUDIENCE=/projects/${PROJECT_NUMBER}/locations/${_REGION}/services/${_SERVICE},SCM_DB_PORT=3306,SCM_DB_NAME=scm,DN_DB_HOST=10.190.0.9,DN_DB_PORT=3306,DN_DB_NAME=_d958d754a21d63f5,GOOGLE_SHEET_ID=1n5mB90-cGl_6z3eT8JqPRlnYyJdAe25OnOeBvflLl-o,DRIVE_POD_FOLDER_ID=1gFXs62BQVonoSrhyhlX6qmIDUSGv9RrW,DRIVE_VIDEO_FOLDER_ID=1AjU2wVAKpDoWe-WvgUEdt04mqfiZKX1I,ADMIN_USERS=Sanskar
-      - --set-secrets=SCM_DB_HOST=analytics-scripts-mysql-host:latest,SCM_DB_USER=analytics-scripts-mysql-user:latest,SCM_DB_PASSWORD=analytics-scripts-mysql-password:latest,DN_DB_USER=analytics-scripts-erp-read-replica-user:latest,DN_DB_PASSWORD=analytics-scripts-erp-read-replica-password:latest,SESSION_SECRET=warehouse-portal-session-secret:latest
+      - --set-env-vars=ALLOW_WITHOUT_IAP=1,SCM_DB_PORT=3306,SCM_DB_NAME=scm,DN_DB_HOST=10.190.0.9,DN_DB_PORT=3306,DN_DB_NAME=_d958d754a21d63f5,GOOGLE_SHEET_ID=1n5mB90-cGl_6z3eT8JqPRlnYyJdAe25OnOeBvflLl-o,DRIVE_POD_FOLDER_ID=1gFXs62BQVonoSrhyhlX6qmIDUSGv9RrW,DRIVE_VIDEO_FOLDER_ID=1AjU2wVAKpDoWe-WvgUEdt04mqfiZKX1I,ADMIN_USERS=Sanskar
+      - --set-secrets=SCM_DB_HOST=analytics-scripts-mysql-host:latest,SCM_DB_USER=analytics-scripts-mysql-user:latest,SCM_DB_PASSWORD=analytics-scripts-mysql-password:latest,DN_DB_USER=analytics-scripts-erp-read-replica-user:latest,DN_DB_PASSWORD=analytics-scripts-erp-read-replica-password:latest
 
 images:
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
