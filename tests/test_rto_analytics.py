@@ -206,7 +206,7 @@ def test_empty_database_gives_an_empty_but_complete_summary(env):
 # ------------------------------------------------------------------ the route
 
 @pytest.fixture()
-def client(env, monkeypatch):
+def client(env, monkeypatch, accounts):
     monkeypatch.setenv("SCM_DB_HOST", "blocked")
     monkeypatch.setitem(sys.modules, "dropdown_cache", types.SimpleNamespace(
         refresh_cache_async=lambda *a, **k: None, SMALL_FIELDS=[], LARGE_FIELDS=[], get_cached_options=lambda **k: {},
@@ -217,7 +217,8 @@ def client(env, monkeypatch):
     from fastapi.testclient import TestClient
 
     monkeypatch.setattr(main.dropdown_cache, "refresh_cache_async", lambda: None)
-    return TestClient(main.app, client=("127.0.0.1", 50000))  # a local run answers loopback only
+    # a local run answers loopback only, and only once signed in
+    return TestClient(main.app, client=("127.0.0.1", 50000), cookies=accounts.cookies("tester"))
 
 
 def test_download_holds_the_entries_behind_the_dashboard(env, client):

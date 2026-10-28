@@ -13,6 +13,9 @@ rto_mdnd_cache.json
 rto_mdnd_net_cache.json
 rto_recon_cache.json
 recon_dn_cache.json
+# Breach Explorer: what the exports write, and what the panel serves (breach_explorer.py)
+breach_pipeline/data/
+breach_cache/
 *.tmp
 .cache/
 # local clone of SupertailsPCPL/analytics-scripts (its own git repo)

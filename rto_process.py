@@ -20,7 +20,7 @@ def _password(name):
     return os.environ[name].encode("utf-8")
 
 
-def get_scm_connection():
+def get_scm_connection(read_timeout=None):
     return pymysql.connect(
         host=os.environ["SCM_DB_HOST"],
         port=int(os.environ["SCM_DB_PORT"]),
@@ -28,6 +28,8 @@ def get_scm_connection():
         password=_password("SCM_DB_PASSWORD"),
         database=os.environ["SCM_DB_NAME"],
         connect_timeout=60,
+        read_timeout=read_timeout,
+        write_timeout=read_timeout,
         charset="utf8mb4",
     )
 

@@ -361,5 +361,8 @@
   window.RTOAnalytics = { refresh: loadAndRender };
 
   updateRangeLabel();
-  loadAndRender();
+  // The page opens on this panel, but not everyone has it (session.js, users.py).
+  window.PortalAccess.ready.then((access) => {
+    if (access.canOpen("rto-analytics")) loadAndRender();
+  });
 })();

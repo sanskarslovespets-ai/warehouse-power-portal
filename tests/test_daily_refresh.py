@@ -94,7 +94,7 @@ def test_the_scheduler_runs_once_per_scheduled_time_and_survives_a_failure(monke
 # ------------------------------------------------------------------ routes
 
 @pytest.fixture()
-def panel(monkeypatch):
+def panel(monkeypatch, accounts):
     import main
 
     caches = {}
@@ -110,7 +110,8 @@ def panel(monkeypatch):
     monkeypatch.setattr(main, "DB_CACHES", {"RTO Status": caches["rto_delivered"], "RTO MDND": caches["rto_mdnd"],
                                             "RTO Reconciliation": caches["rto_recon"]})
     monkeypatch.setattr(main, "_forced_at", {})
-    return types.SimpleNamespace(main=main, caches=caches, client=TestClient(main.app, client=LOCAL))
+    client = TestClient(main.app, client=LOCAL, cookies=accounts.cookies("tester"))  # signed in
+    return types.SimpleNamespace(main=main, caches=caches, client=client)
 
 
 def test_data_status_lists_each_source_and_the_schedule(panel):

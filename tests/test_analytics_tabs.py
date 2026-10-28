@@ -198,14 +198,15 @@ def test_recon_summary_ageing_and_disagreements(env):
 # ------------------------------------------------------------------ routes
 
 @pytest.fixture()
-def client(env):
+def client(env, accounts):
     import main as panel
     from fastapi.testclient import TestClient
 
     env.serve(env.delivered, [delivered("A1")])
     env.serve(env.mdnd_cache, [mdnd_row("M1")])
     env.serve(env.recon_cache, [recon_row("R1", 20)])
-    return TestClient(panel.app, client=("127.0.0.1", 50000))  # a local run answers loopback only
+    # a local run answers loopback only, and only once signed in
+    return TestClient(panel.app, client=("127.0.0.1", 50000), cookies=accounts.cookies("tester"))
 
 
 def test_routes_return_summaries(client):
