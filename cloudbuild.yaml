@@ -52,3 +52,5 @@ images:
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  # Expand ${PROJECT_ID} inside _RUNTIME_SA for manual `gcloud builds submit` too (triggers already do).
+  dynamicSubstitutions: true
