@@ -7,8 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@300;500;600;700&display=swap" rel="stylesheet">
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" href="favicon.png">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/breach_explorer.css">
 </head>
 <body>
   <header class="topbar">
@@ -21,17 +22,23 @@
         </svg>
       </button>
       <span class="brand">
-        <span class="brand-mark" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
-        </span>
-        Warehouse Power <span class="brand-sub">Portal</span>
+        <img class="brand-logo" src="img/supertails-logo.png" width="246" height="63" alt="Supertails">
+        <span class="brand-name">Warehouse Power <span class="brand-sub">Portal</span></span>
       </span>
       <!-- Filled by static/js/data_refresh.js from /api/data-status. -->
       <div class="topbar-data">
         <span id="data-freshness" class="data-freshness"></span>
-        <button type="button" id="btn-refresh-all" class="topbar-btn" aria-label="Refresh from DB" title="Re-pulls every dashboard's data from the databases now; takes a few minutes">
+        <button type="button" id="btn-refresh-all" class="topbar-btn edit-only" aria-label="Refresh from DB" title="Re-pulls every dashboard's data from the databases now; takes a few minutes">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
           <span class="topbar-btn-label">Refresh from DB</span>
+        </button>
+      </div>
+      <!-- Filled by static/js/session.js from /api/me. -->
+      <div class="topbar-account">
+        <span id="signed-in-as" class="topbar-user" hidden></span>
+        <button type="button" id="btn-sign-out" class="topbar-btn" aria-label="Sign out" title="Sign out">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
+          <span class="topbar-btn-label">Sign out</span>
         </button>
       </div>
     </div>
@@ -72,6 +79,60 @@
               <button class="side-nav-item" data-panel="rto-recon" type="button">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg>
                 Reconciliation
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- The SLA Breach Explorer's tabs (breach_explorer.py); each is given to people one by one on the Users page. -->
+        <div class="nav-group open" data-group="breach">
+          <button type="button" class="nav-group-toggle" aria-expanded="true" aria-controls="nav-group-breach">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M5 3 2 6M22 6l-3-3"/></svg>
+            <span class="nav-group-name">Breach Explorer</span>
+            <svg class="nav-group-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="nav-group-items" id="nav-group-breach">
+            <div class="nav-group-inner">
+              <button class="side-nav-item" data-panel="be-breach" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Breach analysis
+              </button>
+              <button class="side-nav-item" data-panel="be-pendency" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14M5 2h14M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4a2 2 0 0 0 .6-1.4V2"/></svg>
+                Pendency
+              </button>
+              <button class="side-nav-item" data-panel="be-complaints" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v4M12 14h.01"/></svg>
+                Complaints
+              </button>
+              <button class="side-nav-item" data-panel="be-rto" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+                RTO
+              </button>
+              <button class="side-nav-item" data-panel="be-connection" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 4h14v12H1zM15 8h4l4 4v4h-8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
+                Connection view
+              </button>
+              <button class="side-nav-item" data-panel="be-radofd" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                RAD to OFD
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admins only: static/js/session.js hides it from everyone else (and users.py refuses its API). -->
+        <div class="nav-group open" data-group="users">
+          <button type="button" class="nav-group-toggle" aria-expanded="true" aria-controls="nav-group-users">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.6a6.5 6.5 0 0 1 3.5 5.4"/></svg>
+            <span class="nav-group-name">Users</span>
+            <svg class="nav-group-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="nav-group-items" id="nav-group-users">
+            <div class="nav-group-inner">
+              <button class="side-nav-item" data-panel="users" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.6 3.4 8.3 8 9 4.6-.7 8-4.4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
+                Users &amp; access
               </button>
             </div>
           </div>
@@ -169,10 +230,10 @@
     <section id="tab-entries" class="tab-panel active">
       <div id="banner-entries" class="banner hidden"></div>
       <div class="panel-toolbar">
-        <button id="btn-new-entry" class="btn btn-primary">+ New Entry</button>
+        <button id="btn-new-entry" class="btn btn-primary edit-only">+ New Entry</button>
         <button id="btn-refresh-entries" class="btn btn-secondary">Refresh</button>
         <button type="button" id="btn-entries-download" class="btn btn-secondary" title="Downloads the entries matching the filters below">Download CSV</button>
-        <button id="btn-sync-sheet" class="btn btn-secondary hidden">Sync to Google Sheet</button>
+        <button id="btn-sync-sheet" class="btn btn-secondary edit-only hidden">Sync to Google Sheet</button>
         <span id="entries-count" class="muted"></span>
       </div>
 
@@ -232,7 +293,7 @@
       <section id="tab-rto-delivered" class="tab-panel active">
         <div id="banner-delivered" class="banner hidden"></div>
         <div class="panel-toolbar">
-          <button type="button" id="btn-delivered-refresh" class="btn btn-secondary" title="Re-runs both queries; the Delivery Note status query takes about 5 minutes">Refresh from DB</button>
+          <button type="button" id="btn-delivered-refresh" class="btn btn-secondary edit-only" title="Re-runs both queries; the Delivery Note status query takes about 5 minutes">Refresh from DB</button>
           <a id="btn-delivered-export" class="btn btn-secondary" href="/api/rto-delivered/export" title="Downloads every row matching the filters below">Download CSV</a>
           <span id="delivered-count" class="muted"></span>
           <span id="delivered-updated" class="muted"></span>
@@ -282,7 +343,7 @@
       <section class="tab-panel active">
         <div id="banner-mdnd" class="banner hidden"></div>
         <div class="panel-toolbar">
-          <button type="button" id="btn-mdnd-refresh" class="btn btn-secondary" title="Re-runs both queries; the Delivery Note query can take several minutes">Refresh from DB</button>
+          <button type="button" id="btn-mdnd-refresh" class="btn btn-secondary edit-only" title="Re-runs both queries; the Delivery Note query can take several minutes">Refresh from DB</button>
           <button type="button" id="btn-mdnd-download" class="btn btn-secondary" title="Downloads this warehouse's rows matching the filters below, with what has been typed in">Download CSV</button>
           <span id="mdnd-count" class="muted"></span>
           <span id="mdnd-updated" class="muted"></span>
@@ -342,7 +403,7 @@
       <h2 class="panel-title">RTO Reconciliation</h2>
       <div id="banner-recon" class="banner hidden"></div>
       <div class="panel-toolbar">
-        <button type="button" id="btn-recon-refresh" class="btn btn-secondary">Refresh from DB</button>
+        <button type="button" id="btn-recon-refresh" class="btn btn-secondary edit-only">Refresh from DB</button>
         <a id="btn-recon-download" class="btn btn-secondary" href="/api/rto-recon/export" title="Downloads every row matching the filters below">Download CSV</a>
         <span id="recon-count" class="muted"></span>
         <span id="recon-updated" class="muted"></span>
@@ -391,6 +452,636 @@
       </div>
       <div class="panel-toolbar">
         <button type="button" id="btn-recon-more" class="btn btn-secondary hidden">Load more</button>
+      </div>
+    </div>
+
+    <!--
+      Breach Explorer: the SLA Breach Explorer's six tabs (breach_explorer.py), one panel each, filled by
+      static/js/be_<tab>.js from /api/breach-explorer/<dataset>. Each panel's .bx-state says what's happening
+      until its data arrives; ids start "bx-" (BX.el in be_common.js).
+    -->
+    <div id="panel-be-breach" class="side-panel bx">
+      <div class="panel-head">
+        <div>
+          <p class="bx-kicker">Breach Explorer</p>
+          <h2 class="panel-title">Breach analysis</h2>
+        </div>
+        <div class="bx-head-side">
+          <span class="bx-freshness"></span>
+          <button type="button" class="btn btn-secondary btn-sm bx-refresh edit-only" title="Re-runs this tab's export against the live database; usually about a minute">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            <span class="bx-refresh-label">Refresh data</span>
+          </button>
+        </div>
+      </div>
+      <div class="bx-state" hidden></div>
+      <div class="bx-body" hidden>
+        <div class="banner hidden bx-banner"></div>
+        <section class="controls" aria-label="Filters">
+          <div class="crow">
+            <span class="clabel">Dates</span>
+            <div class="ms" id="bx-dr">
+              <button class="range" id="bx-range-sub" type="button" aria-haspopup="true" aria-expanded="false" title="Click to change the date range"></button>
+              <div class="ms-pop dr-pop" role="dialog" aria-label="Date range">
+                <div class="dr-sec">
+                  <div class="dr-lab">Quick range</div>
+                  <div class="dr-chips">
+                    <button class="chip" type="button" data-preset="l7">7 days</button>
+                    <button class="chip" type="button" data-preset="l14">14 days</button>
+                    <button class="chip" type="button" data-preset="mtd">This month</button>
+                    <button class="chip" type="button" data-preset="lm">Last month</button>
+                    <button class="chip" type="button" data-preset="lmtd">Last month TD</button>
+                    <button class="chip" type="button" data-preset="l2mtd">2 months ago TD</button>
+                    <button class="chip" type="button" data-preset="all">All data</button>
+                  </div>
+                </div>
+                <div class="dr-sec">
+                  <div class="dr-lab">Custom</div>
+                  <div class="dr-dates">
+                    <label>From<input type="date" id="bx-f-from"></label>
+                    <label>To<input type="date" id="bx-f-to"></label>
+                  </div>
+                </div>
+                <div class="ms-foot"><span id="bx-dr-avail" class="dr-avail"></span></div>
+              </div>
+            </div>
+            <span class="spacer"></span>
+            <span class="clabel">Basis &middot; all views</span>
+            <div class="seg basis" role="group" aria-label="Breach basis">
+              <button type="button" data-basis="delivered" aria-pressed="true">Delivered basis</button>
+              <button type="button" data-basis="rad" aria-pressed="false">RAD basis</button>
+            </div>
+          </div>
+          <div class="crow">
+            <span class="clabel">Filter</span>
+            <div class="ms" id="bx-ms-courier"></div>
+            <div class="ms" id="bx-ms-account"></div>
+            <div class="ms" id="bx-ms-slab"></div>
+            <div class="ms" id="bx-ms-ptype"></div>
+            <div class="ms" id="bx-ms-wh"></div>
+            <div class="ms" id="bx-ms-dest"></div>
+            <div class="ms" id="bx-ms-metro"></div>
+            <div class="spacer"></div>
+            <button class="linkbtn" type="button" id="bx-btn-reset">Reset all</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="phead">
+            <h3>Overall performance</h3>
+            <span class="pnote" id="bx-ov-note"></span>
+          </div>
+          <div class="tablebox"><table id="bx-t-overall"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead">
+            <h3>Day on day</h3>
+            <span class="pnote" id="bx-day-note"></span>
+            <div class="right">
+              <div class="seg cols" data-for="day">
+                <button type="button" data-cols="both" aria-pressed="true">Both</button>
+                <button type="button" data-cols="count" aria-pressed="false">Counts</button>
+                <button type="button" data-cols="pct" aria-pressed="false">%</button>
+              </div>
+            </div>
+          </div>
+          <div class="tablebox"><table id="bx-t-day"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead">
+            <h3>By promise type</h3>
+            <span class="pnote">QC 1&ndash;128 min &middot; SDD zero-promise and 129 min &ndash; 1 day &middot; Standard &gt; 1 day</span>
+            <div class="right">
+              <div class="seg cols" data-for="ptype">
+                <button type="button" data-cols="both" aria-pressed="true">Both</button>
+                <button type="button" data-cols="count" aria-pressed="false">Counts</button>
+                <button type="button" data-cols="pct" aria-pressed="false">%</button>
+              </div>
+            </div>
+          </div>
+          <div class="tablebox"><table id="bx-t-ptype"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead">
+            <h3>By courier</h3>
+            <div class="right">
+              <div class="ms right" id="bx-ms-c-wh"></div>
+              <div class="ms right" id="bx-ms-c-account"></div>
+              <div class="ms right" id="bx-ms-c-slab"></div>
+              <div class="ms right" id="bx-ms-c-ptype"></div>
+              <div class="seg cols" data-for="courier">
+                <button type="button" data-cols="both" aria-pressed="true">Both</button>
+                <button type="button" data-cols="count" aria-pressed="false">Counts</button>
+                <button type="button" data-cols="pct" aria-pressed="false">%</button>
+              </div>
+            </div>
+          </div>
+          <div class="tablebox"><table id="bx-t-courier"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead">
+            <h3>By lane</h3>
+            <span class="pnote">pickup &rarr; destination &middot; top 60 by volume</span>
+            <div class="right">
+              <div class="ms right" id="bx-ms-l-courier"></div>
+              <div class="ms right" id="bx-ms-l-account"></div>
+              <div class="ms right" id="bx-ms-l-wh"></div>
+              <div class="ms right" id="bx-ms-l-slab"></div>
+              <div class="seg cols" data-for="lane">
+                <button type="button" data-cols="both" aria-pressed="true">Both</button>
+                <button type="button" data-cols="count" aria-pressed="false">Counts</button>
+                <button type="button" data-cols="pct" aria-pressed="false">%</button>
+              </div>
+              <button class="linkbtn" type="button" id="bx-btn-csv" title="Every lane matching the filters, not just the 60 shown">Export CSV</button>
+            </div>
+          </div>
+          <div class="tablebox"><table id="bx-t-lane"></table></div>
+        </section>
+
+        <footer class="note">
+          <strong>Delivered basis</strong> &mdash; whole-day <code>Edd_Sent</code>: breach when <code>delivery_date &gt; Edd_Delivery_time</code>;
+          fractional <code>Edd_Sent</code>: breach when <code>delivery_date &gt; order_date + ROUND(Edd_Sent &times; 86400) sec</code>.
+          <strong>RAD basis</strong> &mdash; identical for whole-day orders; fractional-EDD orders measured against
+          <code>rider_reached_drop_location_first</code>, falling back to <code>delivery_date &minus; 5 min</code> (handshake buffer).
+          Breach % = breach &divide; delivered, with NA kept in the denominator. <code>Delhivery Reverse</code> excluded throughout.
+          <strong>Promise type</strong> &mdash; <strong>QC</strong>: promise above 0 and under 129 minutes;
+          <strong>SDD</strong>: <code>Edd_Sent</code> = 0, or 129 minutes up to and including a 1-day promise (<code>Edd_Sent</code> &le; 1);
+          <strong>Standard</strong>: anything longer than 1 day.
+          <strong>Under promise</strong> applies only to whole-day EDD orders &mdash; fractional-EDD orders land in Day 0 or Breach.
+          <strong>D1 / D2 / D3+</strong> = calendar days between delivery and the promise date; a fractional-EDD order late within the same day counts as breach D1.
+          EDD backfill lags a day or two, so the latest dates are provisional.
+        </footer>
+      </div>
+    </div>
+
+    <div id="panel-be-pendency" class="side-panel bx">
+      <div class="panel-head">
+        <div>
+          <p class="bx-kicker">Breach Explorer</p>
+          <h2 class="panel-title">Pendency</h2>
+        </div>
+        <div class="bx-head-side">
+          <span class="bx-freshness"></span>
+          <button type="button" class="btn btn-secondary btn-sm bx-refresh edit-only" title="Re-runs this tab's export against the live database; usually under a minute">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            <span class="bx-refresh-label">Refresh data</span>
+          </button>
+        </div>
+      </div>
+      <div class="bx-state" hidden></div>
+      <div class="bx-body" hidden>
+        <div class="banner hidden bx-banner"></div>
+        <p class="asof" id="bx-pend-asof"></p>
+
+        <section class="controls" aria-label="Pendency filters">
+          <div class="crow">
+            <span class="clabel">Filter</span>
+            <div class="ms" id="bx-ms-p-courier"></div>
+            <div class="ms" id="bx-ms-p-account"></div>
+            <div class="ms" id="bx-ms-p-slab"></div>
+            <div class="ms" id="bx-ms-p-wh"></div>
+            <div class="ms" id="bx-ms-p-status"></div>
+            <div class="ms" id="bx-ms-p-dest"></div>
+            <span class="dbox"><span class="dl">Promise</span>
+              <input type="date" id="bx-p-from" aria-label="Promise date from">
+              <span class="dl">to</span>
+              <input type="date" id="bx-p-to" aria-label="Promise date to"></span>
+            <div class="spacer"></div>
+            <button class="linkbtn" type="button" id="bx-btn-p-csv" title="One row per shipment matching the filters, to send to a courier">Export CSV</button>
+            <button class="linkbtn" type="button" id="bx-btn-p-reset">Reset all</button>
+          </div>
+        </section>
+
+        <div class="pend-cards" id="bx-pend-cards"></div>
+
+        <section class="panel">
+          <div class="phead"><h3>By courier</h3></div>
+          <div class="tablebox"><table id="bx-t-p-courier"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By warehouse</h3></div>
+          <div class="tablebox"><table id="bx-t-p-wh"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By current status</h3><span class="pnote">where open shipments are sitting</span>
+            <div class="right">
+              <div class="ms right" id="bx-ms-ps-courier"></div>
+              <div class="ms right" id="bx-ms-ps-account"></div>
+            </div>
+          </div>
+          <div class="tablebox"><table id="bx-t-p-status"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By lane</h3><span class="pnote">pickup &rarr; destination &middot; top 40 by open volume</span></div>
+          <div class="tablebox"><table id="bx-t-p-lane"></table></div>
+        </section>
+
+        <footer class="note">
+          <strong>Pendency</strong> is a snapshot of shipments with no terminal status yet, taken at the refresh time above &mdash; it ages by the hour, unlike the breach views.
+          <strong>Breached</strong> = promise timestamp already passed. <strong>Due today / tomorrow</strong> = promise falls on that date. All in IST.
+          <strong>D1 / D2 / D3-7 / D8+</strong> = calendar days past the promise date.
+          Promise timestamp uses the same dual rule as the breach views: stored <code>Edd_Delivery_time</code> for whole-day <code>Edd_Sent</code>, else <code>order_date + ROUND(Edd_Sent &times; 86400) sec</code>.
+          Terminal statuses (Delivered, RTO-Delivered, Cancelled, Lost, Damaged, NotServiceable) are excluded, as are in-flight <code>RTO-*</code> shipments &mdash; those are heading back to origin, so the customer promise no longer applies.
+          Only shipments created in the last 60 days are counted; older open records are overwhelmingly stale rows that were never closed out.
+          Shipments with no EDD cannot be bucketed and are excluded.
+        </footer>
+      </div>
+    </div>
+
+    <div id="panel-be-complaints" class="side-panel bx">
+      <div class="panel-head">
+        <div>
+          <p class="bx-kicker">Breach Explorer</p>
+          <h2 class="panel-title">Complaints</h2>
+        </div>
+        <div class="bx-head-side">
+          <span class="bx-freshness"></span>
+          <button type="button" class="btn btn-secondary btn-sm bx-refresh edit-only" title="Re-runs this tab's export against the live database; usually under a minute">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            <span class="bx-refresh-label">Refresh data</span>
+          </button>
+        </div>
+      </div>
+      <div class="bx-state" hidden></div>
+      <div class="bx-body" hidden>
+        <div class="banner hidden bx-banner"></div>
+        <p class="asof" id="bx-cx-asof"></p>
+
+        <section class="controls" aria-label="Complaint filters">
+          <div class="crow">
+            <span class="clabel">Filter</span>
+            <span class="dbox"><span class="dl">Created</span>
+              <input type="date" id="bx-cx-from" aria-label="Created from">
+              <span class="dl">to</span>
+              <input type="date" id="bx-cx-to" aria-label="Created to"></span>
+            <div class="ms" id="bx-ms-cx-cat"></div>
+            <div class="ms" id="bx-ms-cx-issue"></div>
+            <div class="ms" id="bx-ms-cx-sub"></div>
+            <div class="ms" id="bx-ms-cx-courier"></div>
+            <div class="ms" id="bx-ms-cx-channel"></div>
+            <div class="ms" id="bx-ms-cx-status"></div>
+            <div class="spacer"></div>
+            <button class="linkbtn" type="button" id="bx-btn-cx-reset">Reset all</button>
+          </div>
+        </section>
+
+        <div class="pend-cards" id="bx-cx-cards"></div>
+
+        <section class="panel">
+          <div class="phead"><h3>Fake attempt by courier</h3>
+            <span class="pnote">always Fake Attempt (Nobody Came) &middot; ignores the issue filters</span>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-cxfa-csv">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-cx-fakeatt"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By sub-issue</h3>
+            <span class="pnote" id="bx-cx-sub-note"></span>
+            <div class="right"><div class="ms right" id="bx-ms-cxs-courier"></div>
+              <button class="linkbtn" type="button" id="bx-btn-cxs-csv">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-cx-sub"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By courier</h3>
+            <span class="pnote">tickets vs delivered volume, same dates &middot; follows every filter above</span>
+            <div class="right"><div class="ms right" id="bx-ms-cxc-sub"></div>
+              <button class="linkbtn" type="button" id="bx-btn-cxc-csv">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-cx-courier"></table></div>
+        </section>
+
+        <footer class="note">
+          Source <code>CX_data.CDC_Nugget</code>, one row per ticket, joined to <code>cp_database_N</code> on AWB for the courier column.
+          Scoped to <strong>17 issue / sub-issue pairs</strong> covering last-mile faults only: cancellation, delay,
+          failed attempts, MDND, damage and expiry. Missing items and wrong item sent are deliberately excluded as
+          packing/content faults rather than delivery faults. Everything outside those pairs is excluded, so this is
+          not total complaint volume.
+          Courier is attributed in two hops: <code>awb_number</code> matched directly against ClickPost, and where that fails and the value is a DN number,
+          resolved through <code>tabDelivery Note.custom_awb_number</code> back into ClickPost. About 81% of tickets in this scope get a courier; the rest show as <code>Unmapped</code>,
+          mostly because the AWB field contains free text or multiple references. <code>order_id</code> is not used - it is not unique.
+          <code>(blank)</code> is a real value, not an error: category, issue and sub-issue are empty strings on roughly 61-67% of tickets in the source table.
+          Ticket volume jumped about fourfold in Jul 2026; that discontinuity is unexplained and may be an ingestion change rather than a real surge, so trend lines across it are unsafe.
+          <strong>Fake attempt rate</strong> divides Fake Attempt (Nobody Came) tickets by that courier's delivered shipments over the same dates,
+          so couriers of different size are comparable. It is a floor, not an exact rate: tickets whose courier could not be attributed are
+          excluded from the numerator but the denominator is complete, so every courier's true rate is somewhat higher.
+          Tickets are counted by creation date and deliveries by delivery date, which will not line up exactly for any single day.
+          All timestamps IST.
+        </footer>
+      </div>
+    </div>
+
+    <div id="panel-be-rto" class="side-panel bx">
+      <div class="panel-head">
+        <div>
+          <p class="bx-kicker">Breach Explorer</p>
+          <h2 class="panel-title">RTO</h2>
+        </div>
+        <div class="bx-head-side">
+          <span class="bx-freshness"></span>
+          <button type="button" class="btn btn-secondary btn-sm bx-refresh edit-only" title="Re-runs this tab's export against the live database; usually 2-3 minutes">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            <span class="bx-refresh-label">Refresh data</span>
+          </button>
+        </div>
+      </div>
+      <div class="bx-state" hidden></div>
+      <div class="bx-body" hidden>
+        <div class="banner hidden bx-banner"></div>
+        <p class="asof" id="bx-rto-asof"></p>
+
+        <section class="controls" aria-label="RTO filters">
+          <div class="crow">
+            <span class="clabel">Filter</span>
+            <span class="dbox"><span class="dl">RTO marked / delivered</span>
+              <input type="date" id="bx-rto-from" aria-label="Outcome from">
+              <span class="dl">to</span>
+              <input type="date" id="bx-rto-to" aria-label="Outcome to"></span>
+            <div class="ms" id="bx-ms-rto-courier"></div>
+            <div class="ms" id="bx-ms-rto-slab"></div>
+            <div class="ms" id="bx-ms-rto-dest"></div>
+            <div class="ms" id="bx-ms-rto-status"></div>
+            <div class="ms" id="bx-ms-rto-pay"></div>
+            <div class="ms" id="bx-ms-rto-mode"></div>
+            <div class="spacer"></div>
+            <button class="linkbtn" type="button" id="bx-btn-rto-reset">Reset all</button>
+          </div>
+        </section>
+
+        <div class="pend-cards" id="bx-rto-cards"></div>
+
+        <section class="panel">
+          <div class="phead"><h3>By courier</h3>
+            <div class="right"><div class="ms right" id="bx-ms-rto-att"></div>
+              <button class="linkbtn" type="button" id="bx-btn-rtoc-csv">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-rto-courier"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>RTO value by courier</h3>
+            <span class="pnote">ClickPost invoice value (incl. tax) and ERP net value (pre-tax)</span>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-rtoval-csv">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-rto-value"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By destination</h3><span class="pnote">top 50 by terminal volume</span>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-rtod-csv">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-rto-dest"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>Day on day</h3><span class="pnote">by RTO mark / delivery date</span>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-rtoday-csv">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-rto-day"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>Returns received at warehouse</h3>
+            <span class="pnote">RTO-Delivered only, on the date the parcel arrived back</span>
+            <div class="right"><div class="ms right" id="bx-ms-rtr-wh"></div>
+              <div class="ms right" id="bx-ms-rtr-cour"></div>
+              <button class="linkbtn" type="button" id="bx-btn-rtr-csv">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-rto-returns"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>RTO status mix</h3><span class="pnote">where returned shipments currently sit</span>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-rtos-csv">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-rto-status"></table></div>
+        </section>
+
+        <footer class="note">
+          <strong>Event basis.</strong> Every shipment is counted on the date it reached a terminal outcome &mdash; the
+          <code>rto_mark_date</code> for those that came back, the <code>delivery_date</code> for those that did not &mdash; so
+          <strong>RTO % = RTOs marked in the period &divide; (RTOs marked + delivered in the period)</strong>.
+          Shipments still in flight, cancelled, lost or damaged sit on neither side of that ratio and are excluded.
+          Unlike the cohort basis this replaced, recent days are <em>not</em> understated: both sides are settled outcomes.
+          <strong>Avg days to mark</strong> is <code>rto_mark_date &minus; created_at</code>, a lag measure only.
+          <br><strong>Returns received at warehouse</strong> is the one section on a different clock. It counts
+          <code>RTO-Delivered</code> shipments on <code>rto_delivery_date</code> &mdash; the day the parcel physically arrived back &mdash;
+          because that is what a warehouse reconciles against. The gap is real: the median mark-to-receipt lag is about
+          four days and only ~21% arrive within a day, so these daily counts will not line up with the mark-date views above,
+          and are not meant to. The cumulative column answers "how much had landed by D&minus;1".
+          <br>Window is the last 100 days. <code>Delhivery Reverse</code> is excluded throughout.
+          Destinations outside the top 80 by volume are bucketed as <code>Other</code>.
+          <strong>Value</strong> columns show ClickPost <code>invoice_value</code> (tax inclusive) and the ERP
+          <code>net_total</code> (pre-tax); net is blank where the AWB has no matching delivery note.
+        </footer>
+      </div>
+    </div>
+
+    <div id="panel-be-connection" class="side-panel bx">
+      <div class="panel-head">
+        <div>
+          <p class="bx-kicker">Breach Explorer</p>
+          <h2 class="panel-title">Connection view</h2>
+        </div>
+        <div class="bx-head-side">
+          <span class="bx-freshness"></span>
+          <button type="button" class="btn btn-secondary btn-sm bx-refresh edit-only" title="Re-runs this tab's export against the live database; usually a few seconds">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            <span class="bx-refresh-label">Refresh data</span>
+          </button>
+        </div>
+      </div>
+      <div class="bx-state" hidden></div>
+      <div class="bx-body" hidden>
+        <div class="banner hidden bx-banner" id="bx-conn-banner"></div>
+        <p class="asof" id="bx-conn-asof"></p>
+
+        <section class="controls" aria-label="Connection filters">
+          <div class="crow">
+            <span class="clabel">Filter</span>
+            <span class="dbox"><span class="dl">Pickup date</span>
+              <input type="date" id="bx-conn-from" aria-label="Pickup from">
+              <span class="dl">to</span>
+              <input type="date" id="bx-conn-to" aria-label="Pickup to"></span>
+            <div class="ms" id="bx-ms-conn-courier"></div>
+            <div class="ms" id="bx-ms-conn-wh"></div>
+            <div class="ms" id="bx-ms-conn-account"></div>
+            <div class="ms" id="bx-ms-conn-slab"></div>
+            <div class="spacer"></div>
+            <button class="linkbtn" type="button" id="bx-btn-conn-reset">Reset all</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>Connection by pickup date</h3>
+            <span class="pnote">rows are pickup dates, columns are how long the connection took</span>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-connday-csv" title="One row per shipment for these dates and filters">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-conn-day"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By courier</h3>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-conncour-csv" title="One row per shipment for these dates and filters">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-conn-courier"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By warehouse</h3>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-connorig-csv" title="One row per shipment for these dates and filters">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-conn-origin"></table></div>
+        </section>
+
+        <footer class="note">
+          <strong>Connected</strong> means <code>origin_hub_out_timestamp</code> &mdash; the shipment leaving the origin hub on a
+          line-haul connection. Note the column is origin <em>hub</em> out: <code>cp_database_N</code> has no "origin city out"
+          field, and this is its only origin-side departure timestamp. Fill is 99% on Bluedart and 94% on Delhivery, and it
+          never precedes <code>pickup_date</code> on any row.
+          <br><strong>The SLA is an absolute morning cutoff, not an elapsed-time budget.</strong> A shipment picked on day D
+          should be connected by <strong>08:00 on D+1</strong>. So <strong>Day 1</strong> is met, <strong>Day 2</strong> is one
+          day late (out by 08:00 on D+2), <strong>Day 3+</strong> is later than that, and <strong>Not connected</strong> has no
+          timestamp at all. That means Day 1 is a ~32-hour window for a midnight pickup and an 8-hour one for a 23:59 pickup
+          &mdash; deliberately, because that is how the commitment is stated.
+          <br><strong>Bluedart and Delhivery only.</strong> The SDD/NDD network couriers deliver out of the same city and run no
+          line-haul connection, so the measure does not apply to them.
+          <br><strong>Counts are per bucket; the percentages are cumulative.</strong>
+          <em>Day 1 %</em> is Day 1 alone, <em>By day 2 %</em> is Day 1 + Day 2, and <em>By day 3+ %</em> is everything
+          that ever got a connection scan &mdash; so that last figure falls short of 100% by exactly the
+          <strong>Not connected</strong> share. All three divide by total shipments including the unscanned ones:
+          dividing by scanned-only would flatter precisely the warehouses with the worst scan coverage.
+          <br><strong>The newest pickup dates are immature</strong> and marked <em>provisional</em>: a shipment picked today
+          cannot yet have missed an 08:00-tomorrow deadline, so those rows always look worse than they will settle at.
+          Window is the last 60 days of pickups.
+          <br><strong>Export CSV</strong> gives one row per shipment for the dates and filters above, whichever table you export from (at most 92 days at a time).
+        </footer>
+      </div>
+    </div>
+
+    <div id="panel-be-radofd" class="side-panel bx">
+      <div class="panel-head">
+        <div>
+          <p class="bx-kicker">Breach Explorer</p>
+          <h2 class="panel-title">RAD to OFD</h2>
+        </div>
+        <div class="bx-head-side">
+          <span class="bx-freshness"></span>
+          <button type="button" class="btn btn-secondary btn-sm bx-refresh edit-only" title="Re-runs this tab's export against the live database; usually a few seconds">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            <span class="bx-refresh-label">Refresh data</span>
+          </button>
+        </div>
+      </div>
+      <div class="bx-state" hidden></div>
+      <div class="bx-body" hidden>
+        <div class="banner hidden bx-banner" id="bx-ro-banner"></div>
+        <p class="asof" id="bx-ro-asof"></p>
+
+        <section class="controls" aria-label="RAD to OFD filters">
+          <div class="crow">
+            <span class="clabel">Filter</span>
+            <span class="dbox"><span class="dl">Reached destination</span>
+              <input type="date" id="bx-ro-from" aria-label="Arrival from">
+              <span class="dl">to</span>
+              <input type="date" id="bx-ro-to" aria-label="Arrival to"></span>
+            <div class="ms" id="bx-ms-ro-courier"></div>
+            <div class="ms" id="bx-ms-ro-wh"></div>
+            <div class="ms" id="bx-ms-ro-account"></div>
+            <div class="ms" id="bx-ms-ro-slab"></div>
+            <div class="spacer"></div>
+            <button class="linkbtn" type="button" id="bx-btn-ro-reset">Reset all</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By arrival date</h3>
+            <span class="pnote">rows are the day the shipment reached the destination hub</span>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-roday-csv" title="One row per shipment for these dates and filters">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-ro-day"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By destination city</h3>
+            <span class="pnote" id="bx-ro-city-note"></span>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-rocity-csv" title="One row per shipment for these dates and filters">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-ro-city"></table></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h3>By destination hub</h3>
+            <span class="pnote" id="bx-ro-hub-note"></span>
+            <div class="right"><button class="linkbtn" type="button" id="bx-btn-rohub-csv" title="One row per shipment for these dates and filters">Export CSV</button></div>
+          </div>
+          <div class="tablebox"><table id="bx-t-ro-hub"></table></div>
+        </section>
+
+        <footer class="note">
+          <strong>What is timed:</strong> <code>destination_hub_in_scan_time</code> to
+          <code>out_for_delivery_1st_attempt</code> &mdash; the shipment landing at the destination hub, then going out
+          for delivery. OFD coverage is 99% on Bluedart and 98% on Delhivery.
+          <br><strong>"RAD" here is NOT the RAD basis on the breach tab.</strong> There it means
+          <code>rider_reached_drop_location_first</code>, the rider at the customer's door. Here it means arrival at the
+          destination hub, a different and much earlier event. Do not read the two as the same measure.
+          <br><strong>Same day or next day, counted in calendar days</strong> &mdash; deliberately unlike the Connection
+          tab, which scores against an absolute 08:00 cutoff. <strong>Same day</strong> is OFD on the arrival date,
+          <strong>Next day</strong> the day after, <strong>D+2 or later</strong> beyond that, and <strong>No OFD</strong>
+          has no first-attempt timestamp at all. Percentages are cumulative and divide by total shipments, so
+          <em>by next day %</em> falls short of 100% by the D+2 and No OFD shares combined.
+          <br><strong>Destination hub</strong> comes from each courier's own mapping on drop pincode: Bluedart's
+          <code>CSCRCDDESC</code> (12,468 pincodes, none of which map to two hubs), Delhivery's
+          <code>Dispatch Center</code> &mdash; the centre that puts shipments out, not <code>incoming_center</code>, which
+          differs on 12.3% of pincodes. 0.6% of shipments land on a pincode absent from both files and show as
+          <em>Unmapped</em>.
+          <br><strong>Seven mother warehouses, Bluedart and Delhivery only.</strong> Window is the last 30 days of
+          arrivals.
+          <br><strong>Export CSV</strong> gives one row per shipment for the dates and filters above, whichever table you export from (at most 92 days at a time).
+        </footer>
+      </div>
+    </div>
+
+    <!-- Admins only. Filled by static/js/users.js from /api/users. -->
+    <div id="panel-users" class="side-panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Users &amp; access</h2>
+        <button type="button" id="btn-add-user" class="btn btn-primary">+ Add user</button>
+      </div>
+      <p class="panel-lede">Everyone who can sign in, and which tabs they see. <strong>Admins</strong> see every tab and manage users, <strong>editors</strong> can add and change data in their tabs, and <strong>viewers</strong> can only look and download.</p>
+      <div id="banner-users" class="banner hidden"></div>
+      <div class="table-wrap">
+        <table id="users-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th>Tab access</th>
+              <th>Last changed</th>
+              <th><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+        <p id="users-empty" class="empty-hint hidden">No users yet.</p>
+      </div>
+    </div>
+
+    <!-- Shown by static/js/session.js to someone with no tabs yet. -->
+    <div id="panel-no-access" class="side-panel">
+      <div class="no-access">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <h2>No tabs yet</h2>
+        <p id="no-access-text">Your account doesn't have access to any tabs yet. Ask an admin to give you access on the Users page.</p>
       </div>
     </div>
     </main>
@@ -481,6 +1172,54 @@
     </div>
   </div>
 
+  <!-- Add or change a user (admins only): static/js/users.js. -->
+  <div id="user-modal" class="modal-overlay hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+      <div class="modal-header">
+        <h2 id="user-modal-title">Add user</h2>
+        <button id="btn-close-user-modal" class="icon-btn" type="button" aria-label="Close">&times;</button>
+      </div>
+      <form id="user-form" class="modal-body" novalidate>
+        <div id="user-form-error" class="form-error hidden"></div>
+
+        <div class="form-row">
+          <label for="u-username">Username</label>
+          <input type="text" id="u-username" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="64" placeholder="e.g. rahul.wh">
+          <p id="u-username-hint" class="field-hint"></p>
+        </div>
+
+        <div class="form-row">
+          <label for="u-password" id="u-password-label">Password</label>
+          <input type="password" id="u-password" autocomplete="new-password" maxlength="255">
+          <p id="u-password-hint" class="field-hint"></p>
+        </div>
+
+        <fieldset class="form-row">
+          <legend>Role</legend>
+          <div class="role-options">
+            <label class="role-option"><input type="radio" name="role" value="admin"><span><strong>Admin</strong><small>Every tab, and manages users</small></span></label>
+            <label class="role-option"><input type="radio" name="role" value="editor"><span><strong>Editor</strong><small>Their tabs; can add and change data</small></span></label>
+            <label class="role-option"><input type="radio" name="role" value="viewer"><span><strong>Viewer</strong><small>Their tabs; can only look and download</small></span></label>
+          </div>
+          <p id="u-role-hint" class="field-hint hidden"></p>
+        </fieldset>
+
+        <fieldset class="form-row">
+          <legend>Tab access</legend>
+          <div id="u-tab-list" class="tab-options"></div>
+          <p id="u-tabs-hint" class="field-hint"></p>
+        </fieldset>
+
+        <div class="modal-footer">
+          <button type="button" id="btn-delete-user" class="btn btn-danger hidden">Delete user</button>
+          <button type="button" id="btn-cancel-user" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="btn-save-user" class="btn btn-primary">Save user</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/session.js"></script>
   <script src="js/csv.js"></script>
   <script src="js/app.js"></script>
   <script src="js/charts.js"></script>
@@ -490,6 +1229,14 @@
   <script src="js/rto_delivered.js"></script>
   <script src="js/rto_mdnd.js"></script>
   <script src="js/rto_recon.js"></script>
+  <script src="js/be_common.js"></script>
+  <script src="js/be_breach.js"></script>
+  <script src="js/be_pendency.js"></script>
+  <script src="js/be_complaints.js"></script>
+  <script src="js/be_rto.js"></script>
+  <script src="js/be_connection.js"></script>
+  <script src="js/be_radofd.js"></script>
+  <script src="js/users.js"></script>
   <script src="js/data_refresh.js"></script>
   <script src="js/motion.js"></script>
 </body>

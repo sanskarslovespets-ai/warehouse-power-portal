@@ -495,5 +495,7 @@
   });
 
   // ---------- init ----------
-  checkStatus();
+  window.PortalAccess.ready.then((access) => {
+    if (access.canOpen("rto-process")) checkStatus();
+  });
 })();

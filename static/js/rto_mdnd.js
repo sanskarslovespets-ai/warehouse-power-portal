@@ -152,6 +152,8 @@
     if (locked) {
       el.disabled = true;
       el.title = "Auto-filled: this AWB is in the RTO Process form";
+    } else if (document.body.dataset.role === "viewer") {
+      el.disabled = true; // view-only access (users.py): the server would refuse the save anyway
     }
     controls[spec.key] = el;
     el.addEventListener("change", () => save(row, controls, spec.key, el));

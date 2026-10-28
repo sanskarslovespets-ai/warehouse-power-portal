@@ -7,7 +7,8 @@
   // Whenever a cache gets new data - the morning run, this button, or a panel's own Refresh from DB -
   // the page fires a "panel:data-changed" event with the ids of the caches that changed
   // (rto_delivered, rto_mdnd, rto_recon), and each panel already opened reloads itself. So a page
-  // left open overnight shows the 9:00 data without anyone reloading it.
+  // left open overnight shows the 9:00 data without anyone reloading it. A panel that starts a refresh of
+  // its own fires "panel:refresh-started", so this shows it straight away rather than at the next look.
 
   const IDLE_POLL_MS = 5 * 60 * 1000;
   const BUSY_POLL_MS = 4000;
@@ -29,7 +30,12 @@
   }
 
   function render(data) {
-    const sources = data.sources;
+    const sources = data.sources; // only the caches behind this user's tabs (main.data_status)
+    btn.classList.toggle("hidden", !sources.length);
+    if (!sources.length) {
+      label.textContent = "";
+      return false;
+    }
     const busy = sources.some((s) => s.refreshing);
     const fetched = sources.map((s) => s.fetched_at).filter(Boolean);
     const next = "Next auto-refresh " + when(data.schedule.next_run);
@@ -94,6 +100,7 @@
     announce(data.refreshing); // the open panels reload, show "Refreshing…" and follow it to the end
     poll();
   });
+  window.addEventListener("panel:refresh-started", () => poll());
 
   poll();
 })();

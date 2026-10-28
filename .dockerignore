@@ -9,6 +9,8 @@ secrets/
 *.db
 *.db-journal
 *_cache.json
+breach_pipeline/data/
+breach_cache/
 dropdown_cache.csv
 *.tmp
 .cache/

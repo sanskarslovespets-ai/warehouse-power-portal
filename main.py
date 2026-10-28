@@ -6,25 +6,29 @@ Run locally (reads the SCM_DB_*, DN_DB_*, GOOGLE_* and DRIVE_* settings from .en
 
 then open http://localhost:5659 (interactive API docs at /docs).
 
-On a server, set IAP_AUDIENCE and put the panel behind Identity-Aware Proxy: until then it only
-answers requests from the machine it runs on (see security.py).
+On a server, set IAP_AUDIENCE and put the panel behind Identity-Aware Proxy, or set
+ALLOW_WITHOUT_IAP=1 while it isn't: until one is set it only answers requests from the machine it
+runs on (see security.py). Either way, everyone also signs in with a username and password from
+scm.warehouse_users (see auth.py).
 """
 import csv
+import gzip
 import io
+import math
 import mimetypes
 import os
 import re
 import time
 import traceback
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated
 
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI, Form, HTTPException, Query, UploadFile
+from fastapi import Body, Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.datastructures import Headers
@@ -32,8 +36,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import analytics
 import analytics_mdnd
+import auth
 import analytics_recon
 import analytics_status
+import breach_explorer
 import daily_refresh
 import dropdown_cache
 import entries_store
@@ -43,6 +49,7 @@ import rto_mdnd
 import rto_recon
 import google_services
 import security
+import users
 from rto_process import awb_exists
 
 load_dotenv()
@@ -72,7 +79,16 @@ VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".3gp", ".webm", ".mkv", ".avi"}
 
 # The database-backed caches behind the dashboards, by the name the page shows them under. Each is
 # re-pulled every morning (daily_refresh.py) and by the top bar's Refresh from DB.
-DB_CACHES = {"RTO Status": rto_delivered, "RTO MDND": rto_mdnd, "RTO Reconciliation": rto_recon}
+DB_CACHES = {"RTO Status": rto_delivered, "RTO MDND": rto_mdnd, "RTO Reconciliation": rto_recon,
+             "Breach Explorer": breach_explorer}
+# The tabs each cache feeds: the top bar shows, and refreshes, only the caches behind someone's own tabs
+# (so Refresh from DB on the RTO tabs doesn't also start the Breach Explorer's ten-minute run).
+CACHE_TABS = {
+    "rto_delivered": {"rto-analytics", "rto-status"},
+    "rto_mdnd": {"rto-analytics", "rto-mdnd"},
+    "rto_recon": {"rto-analytics", "rto-recon"},
+    "breach_explorer": {tab for tab, group in users.TAB_GROUP.items() if group == "Breach Explorer"},
+}
 
 # A forced refresh re-runs the full source queries (the Delivery Note scan takes minutes on the
 # ERP DB), so repeated clicks - or a script - must not be able to keep the DB busy.
@@ -112,7 +128,7 @@ def _daily_refresh():
 
 
 # The API docs (/docs, /redoc, /openapi.json) map every endpoint: local runs only.
-app = FastAPI(title="Warehouse Power Portal", lifespan=lifespan, openapi_url=None if security.IAP_AUDIENCE else "/openapi.json")
+app = FastAPI(title="Warehouse Power Portal", lifespan=lifespan, openapi_url=None if security.on_server() else "/openapi.json")
 
 
 class LimitUploadSize:
@@ -239,9 +255,134 @@ def rto_process_panel():
     return RedirectResponse("/")  # the page's old address; static/index.html is now served at /
 
 
+# Sign-in (auth.py) and access (users.py). security.Guard sends every other request without a session here.
+
+class Credentials(BaseModel):
+    username: str = ""
+    password: str = ""
+
+
+def _access(request):
+    """The signed-in user's users.Access (security.Guard has already checked the session)."""
+    return users.for_session(request.cookies.get(auth.COOKIE))
+
+
+def _start_session(request, response, username, password):
+    response.set_cookie(
+        auth.COOKIE, auth.issue(username, auth.seal(password)), max_age=auth.SESSION_HOURS * 3600, httponly=True,
+        samesite="lax", secure=security.on_server() or request.url.scheme == "https",  # a local run is plain http
+    )
+
+
+@app.get("/login", include_in_schema=False)
+def login_page(request: Request):
+    try:
+        signed_in = _access(request)
+    except Exception:
+        signed_in = None  # can't check right now: show the form rather than an error
+    if signed_in:
+        return RedirectResponse("/", status_code=303)
+    return FileResponse(STATIC / "login.html")
+
+
+@app.post("/api/login")
+def login(creds: Credentials, request: Request, response: Response):
+    username = creds.username.strip()
+    if not username or not creds.password:
+        raise HTTPException(400, "Enter your username and password.")
+    if auth.locked_out(username):
+        raise HTTPException(429, "Too many wrong attempts. Please wait 15 minutes and try again.")
+    user = None
+    if len(username) <= auth.MAX_FIELD_LENGTH and len(creds.password) <= auth.MAX_FIELD_LENGTH:
+        try:
+            user = auth.check_password(username, creds.password)
+        except Exception:
+            traceback.print_exc()
+            raise HTTPException(503, "Could not check your sign-in right now. Please try again.")
+    if not user:
+        # One message for both: saying which was wrong would tell a stranger which usernames exist.
+        auth.note_failure(username)
+        print(f"[auth] wrong username or password for {username!r}", flush=True)
+        raise HTTPException(401, "Incorrect username or password.")
+    auth.clear_failures(username)
+    users.forget(user)  # read their access afresh: a password changed in the database may still be cached
+    print(f"[auth] {user!r} signed in", flush=True)
+    _start_session(request, response, user, creds.password)
+    return {"username": user}
+
+
+@app.post("/api/logout")
+def logout(response: Response):
+    response.delete_cookie(auth.COOKIE, httponly=True, samesite="lax")
+    return {"signed_out": True}
+
+
+@app.get("/api/me")
+def me(request: Request):
+    """The signed-in user, and which panels the page shows them."""
+    return _access(request).as_json()
+
+
+# Users (admins only: users.denial): everyone who can sign in, their role, and which tabs they see.
+
+class UserForm(BaseModel):
+    username: str = ""
+    password: str = ""
+    role: str = "viewer"
+    tabs: list[str] = []
+
+
+def _change_users(change, *args, **kwargs):
+    """Runs a users.py change, turning its refusals into the message the Users page shows."""
+    try:
+        change(*args, **kwargs)
+    except users.Refused as e:
+        raise HTTPException(400, str(e))
+    except users.NoSuchUser:
+        raise HTTPException(404, "There is no such user. Reload the list and try again.")
+    except Exception:
+        traceback.print_exc()
+        raise HTTPException(503, "Could not save the change to the database. Please try again.")
+
+
+@app.get("/api/users")
+def list_users(request: Request):
+    try:
+        listed = users.list_users()
+    except Exception:
+        traceback.print_exc()
+        raise HTTPException(503, "Could not read the users from the database. Please try again.")
+    return {
+        "users": listed,
+        "tabs": [{"id": tab, "name": name, "group": users.TAB_GROUP[tab]} for tab, name in users.TABS.items()],
+        "you": _access(request).username,
+    }
+
+
+@app.post("/api/users", status_code=201)
+def create_user(form: UserForm, request: Request):
+    _change_users(users.create, form.username, form.password, form.role, form.tabs, by=_access(request).username)
+    return {"saved": True}
+
+
+@app.put("/api/users/{username:path}")
+def update_user(username: str, form: UserForm, request: Request, response: Response):
+    you = _access(request).username
+    _change_users(users.update, username, form.role, form.tabs, by=you, password=form.password)
+    if username == you and form.password:
+        _start_session(request, response, you, form.password)  # a new password ends older sessions, not this one
+    return {"saved": True}
+
+
+@app.delete("/api/users/{username:path}")
+def delete_user(username: str, request: Request):
+    _change_users(users.delete, username, by=_access(request).username)
+    return {"deleted": True}
+
+
 @app.get("/api/status")
 def status():
-    # Called once per page load, so it also refreshes the facility/courier/SKU/AWB dropdown
+    # Called on page load for users with the Process tab, so it also refreshes the facility/courier/SKU/AWB dropdown
     # cache in the background (throttled - see dropdown_cache.refresh_cache) so the page never
     # waits on a live DB query; any newly-seen values get appended to dropdown_cache.csv.
     dropdown_cache.refresh_cache_async()
@@ -252,15 +393,21 @@ def status():
     }
 
 
+def _your_caches(request):
+    """The DB_CACHES behind the signed-in user's tabs (all of them, for an admin)."""
+    tabs = _access(request).tabs
+    return {label: module for label, module in DB_CACHES.items() if CACHE_TABS.get(module.__name__, tabs) & tabs}
+
+
 @app.get("/api/data-status")
-def data_status():
-    """The top bar: when each dashboard's data was last pulled from the database, and the daily schedule.
+def data_status(request: Request):
+    """The top bar: when the data behind your tabs was last pulled from the database, and the daily schedule.
 
     Reading a cache's state also starts its refresh when it has missed the morning run (server off
     or asleep at that time), so the first visit of the day catches up.
     """
     sources = []
-    for label, module in DB_CACHES.items():
+    for label, module in _your_caches(request).items():
         state = module.snapshot()
         sources.append({"id": module.__name__, "label": label, "fetched_at": state["fetched_at"],
                         "refreshing": state["refreshing"], "error": state["error"]})
@@ -268,10 +415,11 @@ def data_status():
 
 
 @app.post("/api/refresh-all", status_code=202)
-def refresh_all():
-    """The top bar's Refresh from DB: re-pulls every cache not already re-pulled in the last few minutes."""
-    started = [module.__name__ for module in DB_CACHES.values() if _start_forced(module)]
-    if not started and not any(module.is_refreshing() for module in DB_CACHES.values()):
+def refresh_all(request: Request):
+    """The top bar's Refresh from DB: re-pulls each cache behind your tabs not already re-pulled in the last few minutes."""
+    caches = _your_caches(request).values()
+    started = [module.__name__ for module in caches if _start_forced(module)]
+    if not started and not any(module.is_refreshing() for module in caches):
         raise HTTPException(429, "All data was refreshed from the database a few minutes ago. Please try again later.")
     return {"refreshing": started}
 
@@ -504,6 +652,89 @@ def rto_recon_export(filters: ReconFilters):
 @app.post("/api/rto-recon/refresh", status_code=202)
 def rto_recon_refresh():
     return _force_refresh(rto_recon)
+
+
+# Breach Explorer (breach_explorer.py): each tab's data as the SLA Breach Explorer's own export script wrote it.
+# users.API_TABS gives each dataset to its tab, so someone without a tab can't fetch its data.
+
+@app.get("/api/breach-explorer/status")
+def breach_explorer_status():
+    return breach_explorer.status()
+
+
+@app.post("/api/breach-explorer/{dataset}/refresh", status_code=202)
+def breach_explorer_refresh(dataset: str):
+    """A tab's Refresh data (static/js/be_common.js): re-runs that tab's export now, or straight after the ones
+    already running. Answers with the status, which the tab then follows until its new data is in."""
+    if dataset not in breach_explorer.TAB_EXPORTS:
+        raise HTTPException(404, "There is no such Breach Explorer tab.")
+    age = breach_explorer.refresh_tab(dataset, FORCE_REFRESH_COOLDOWN_SECONDS)
+    if age is not None:
+        old = "less than a minute" if age < 60 else f"{int(age // 60)} min"
+        wait = math.ceil((FORCE_REFRESH_COOLDOWN_SECONDS - age) / 60)
+        raise HTTPException(429, f"This tab's data is {old} old. You can refresh it again in {wait} min.")
+    return breach_explorer.status()
+
+
+@app.get("/api/breach-explorer/{dataset}/awbs")
+def breach_explorer_awbs(
+    dataset: str,
+    dates: DateRange,
+    courier: Annotated[list[str], Query()] = [],
+    warehouse: Annotated[list[str], Query()] = [],
+    account: Annotated[list[str], Query()] = [],
+    slab: Annotated[list[str], Query()] = [],
+):
+    """Connection view / RAD to OFD: Export CSV, one row per shipment, for the tab's dates and filters."""
+    if dataset not in breach_explorer.AWB_SPECS:
+        raise HTTPException(404, "Shipment-level export is only on the Connection view and RAD to OFD tabs.")
+    date_from, date_to = dates
+    if not date_from or not date_to:
+        raise HTTPException(400, "Pick the dates to export first.")
+    days = (date.fromisoformat(date_to) - date.fromisoformat(date_from)).days + 1
+    if days < 1:
+        raise HTTPException(400, "The start date is after the end date.")
+    if days > breach_explorer.AWB_MAX_DAYS:
+        raise HTTPException(400, f"Export at most {breach_explorer.AWB_MAX_DAYS} days of shipments at a time.")
+    filters = [[_clip(v) for v in values if _clip(v)][:500] for values in (courier, warehouse, account, slab)]
+    try:
+        columns, rows, truncated = breach_explorer.awb_rows(dataset, date_from, date_to, *filters)
+    except breach_explorer.Busy:
+        raise HTTPException(429, "Two shipment exports are already running. Please try again in a minute.")
+    except Exception:
+        traceback.print_exc()
+        raise HTTPException(503, "Could not read the shipments from the database. Please try again.")
+    buf = io.StringIO()
+    buf.write("﻿")  # Excel reads the file as UTF-8
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(columns)
+    writer.writerows([_csv_safe("" if row[c] is None else row[c]) for c in columns] for row in rows)
+    if truncated:
+        writer.writerow([f"TRUNCATED at {breach_explorer.AWB_ROW_CAP} rows - narrow the filters"])
+    return Response(
+        buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={dataset}_awbs_{date_from}_to_{date_to}.csv"},
+    )
+
+
+@app.get("/api/breach-explorer/{dataset}")
+def breach_explorer_data(dataset: str, request: Request):
+    """One tab's data: the JSON its export wrote, gzipped once when it came in. A page that already holds this
+    version sends its ETag back (If-None-Match) and gets an empty 304, so new data for another tab doesn't
+    cost this one a download. (API responses are never cached by the browser: security.SecurityHeaders.)"""
+    if dataset not in breach_explorer.DATASETS:
+        raise HTTPException(404, "There is no such Breach Explorer data.")
+    found = breach_explorer.payload(dataset)
+    if not found:
+        raise HTTPException(503, "This tab has no data yet.")
+    gz, etag = found
+    headers = {"ETag": etag, "Vary": "Accept-Encoding"}
+    if etag in request.headers.get("if-none-match", ""):
+        return Response(status_code=304, headers=headers)
+    if "gzip" in request.headers.get("accept-encoding", ""):
+        return Response(gz, media_type="application/json", headers={**headers, "Content-Encoding": "gzip"})
+    return Response(gzip.decompress(gz), media_type="application/json", headers=headers)
 
 
 class EntryForm(BaseModel):

@@ -8,6 +8,9 @@ pymysql==1.2.3
 python-dotenv==1.2.3
 python-multipart==0.0.32
 requests==2.34.2
+# The Breach Explorer exports (breach_pipeline/) read the pincode and hub mapping workbooks with pandas.
+pandas==3.0.5
+openpyxl==3.1.5
 uvicorn[standard]==0.54.0
 # IAP signs its tokens with ES256, which google-auth verifies through cryptography (security.py).
 cryptography==50.0.1
