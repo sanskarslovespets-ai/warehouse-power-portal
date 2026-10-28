@@ -139,9 +139,12 @@
     $("u-tabs-hint").textContent = admin ? "Admins see every tab, and this Users page." : "Tick the tabs they can open.";
   }
 
+  // The message sits at the top of the form, which scrolls on a short window: scroll back up to it, or
+  // Save user seems to do nothing while the reason is out of sight.
   function showFormError(message) {
     formError.textContent = message;
     formError.classList.remove("hidden");
+    form.scrollTop = 0;
   }
 
   function openForm(user) {
@@ -217,7 +220,9 @@
       showFormError("Enter a username and a password.");
       return;
     }
+    formError.classList.add("hidden");
     saveBtn.disabled = true;
+    saveBtn.textContent = "Saving...";
     const adding = !editing;
     const name = adding ? body.username : editing.username;
     try {
@@ -232,6 +237,7 @@
       showFormError(err.message);
     } finally {
       saveBtn.disabled = false;
+      saveBtn.textContent = "Save user";
     }
   });
 

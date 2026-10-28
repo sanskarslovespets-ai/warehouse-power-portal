@@ -340,8 +340,12 @@ def _change_users(change, *args, **kwargs):
         raise HTTPException(400, str(e))
     except users.NoSuchUser:
         raise HTTPException(404, "There is no such user. Reload the list and try again.")
-    except Exception:
+    except Exception as e:
         traceback.print_exc()
+        if users.not_permitted(e):  # trying again won't help: say what the database needs
+            raise HTTPException(503, "The panel's database account isn't allowed to change users. Ask a database "
+                                     "admin to grant it INSERT, UPDATE and DELETE on scm.warehouse_users and "
+                                     "scm.warehouse_user_access.")
         raise HTTPException(503, "Could not save the change to the database. Please try again.")
 
 
