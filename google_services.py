@@ -2,6 +2,7 @@ import json
 import os
 import threading
 
+import google.auth
 from dotenv import load_dotenv
 from google.auth.transport.requests import Request
 from google.oauth2 import service_account
@@ -46,8 +47,13 @@ class GoogleNotConnected(Exception):
     pass
 
 
+# Set on Cloud Run: there the runtime service account (no key file) is used, through
+# Application Default Credentials. The Sheet and both Drive folders must be shared with it.
+ON_CLOUD_RUN = bool(os.environ.get("K_SERVICE"))
+
+
 def is_connected():
-    return os.path.exists(SERVICE_ACCOUNT_FILE) or os.path.exists(TOKEN_FILE)
+    return ON_CLOUD_RUN or os.path.exists(SERVICE_ACCOUNT_FILE) or os.path.exists(TOKEN_FILE)
 
 
 def service_account_email():
@@ -66,6 +72,8 @@ def _credentials():
     # preferred path for this headless app.
     if os.path.exists(SERVICE_ACCOUNT_FILE):
         return service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    if ON_CLOUD_RUN:
+        return google.auth.default(scopes=SCOPES)[0]
 
     with _credentials_lock:
         if not os.path.exists(TOKEN_FILE):

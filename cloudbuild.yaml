@@ -1,0 +1,54 @@
+# Cloud Build: build the image, push it, and roll the Cloud Run service on every push to production.
+# Trigger: warehouse-portal (sup-internal-apps, asia-south1), runs as warehouse-portal-deployer.
+substitutions:
+  _REGION: asia-south1
+  _SERVICE: warehouse-portal
+  _REPO: services
+  _RUNTIME_SA: warehouse-portal-runtime@${PROJECT_ID}.iam.gserviceaccount.com
+  # Direct VPC egress: the ERP read replica (10.190.0.9) is only reachable over prod-vpc.
+  # Shared VPC resources owned by sup-network-host, so both must be full resource paths.
+  _NETWORK: projects/sup-network-host/global/networks/prod-vpc
+  _SUBNET: projects/sup-network-host/regions/asia-south1/subnetworks/internal-apps-subnet
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}',
+           '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:latest', '.']
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}']
+
+  # Private service (no --allow-unauthenticated); staff reach it through IAP, which is enabled on
+  # the service once and kept across deploys. IAP_AUDIENCE makes security.py verify IAP's token.
+  # min-instances=1 + no-cpu-throttling keep the 9:00 IST refresh thread alive; max-instances=1
+  # because entries live in a per-instance SQLite file and each instance would re-scan the DBs.
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --region=${_REGION}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+      - --service-account=${_RUNTIME_SA}
+      - --no-allow-unauthenticated
+      - --network=${_NETWORK}
+      - --subnet=${_SUBNET}
+      - --vpc-egress=private-ranges-only
+      - --min-instances=1
+      - --max-instances=1
+      - --no-cpu-throttling
+      - --memory=2Gi
+      - --cpu=1
+      - --set-env-vars=IAP_AUDIENCE=/projects/${PROJECT_NUMBER}/locations/${_REGION}/services/${_SERVICE},SCM_DB_PORT=3306,SCM_DB_NAME=scm,DN_DB_HOST=10.190.0.9,DN_DB_PORT=3306,DN_DB_NAME=_d958d754a21d63f5,GOOGLE_SHEET_ID=1n5mB90-cGl_6z3eT8JqPRlnYyJdAe25OnOeBvflLl-o,DRIVE_POD_FOLDER_ID=1gFXs62BQVonoSrhyhlX6qmIDUSGv9RrW,DRIVE_VIDEO_FOLDER_ID=1AjU2wVAKpDoWe-WvgUEdt04mqfiZKX1I
+      - --set-secrets=SCM_DB_HOST=analytics-scripts-mysql-host:latest,SCM_DB_USER=analytics-scripts-mysql-user:latest,SCM_DB_PASSWORD=analytics-scripts-mysql-password:latest,DN_DB_USER=analytics-scripts-erp-read-replica-user:latest,DN_DB_PASSWORD=analytics-scripts-erp-read-replica-password:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
