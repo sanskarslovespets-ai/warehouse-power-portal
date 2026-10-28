@@ -21,6 +21,7 @@ analytics-scripts/
 archive/
 tests/
 *.pdf
+*.zip
 .git/
 .pytest_cache/
 __pycache__/
