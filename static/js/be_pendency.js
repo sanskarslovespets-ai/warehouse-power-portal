@@ -177,7 +177,7 @@
       v = v === null || v === undefined ? '' : String(v);
       // free text (current location) a spreadsheet would run as a formula; not numbers like days_late -1
       if (/^[=+\-@\t\r]/.test(v) && !/^-?\d+(\.\d+)?$/.test(v)) v = "'" + v;
-      return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; // a bare \r would start a new cell
     };
     const out = [detail.columns.map(q).join(',')];
     rows.forEach(function (r) { out.push(r.map(q).join(',')); });

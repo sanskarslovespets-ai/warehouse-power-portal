@@ -125,7 +125,7 @@
       // numbers. Percentages keep their % (spreadsheets parse those); labels are untouched.
       if (/^-?[0-9,]+([.][0-9]+)?$/.test(v)) v = v.replace(/,/g, "");
       if (/^[=+\-@\t\r]/.test(v) && !/^-?[0-9.]+%?$/.test(v)) v = "'" + v; // a label a spreadsheet would run as a formula
-      return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; // a bare \r would start a new cell
     };
     const out = [];
     t.querySelectorAll("thead tr").forEach((tr) => {

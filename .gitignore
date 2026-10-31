@@ -16,6 +16,10 @@ recon_dn_cache.json
 # Breach Explorer: what the exports write, and what the panel serves (breach_explorer.py)
 breach_pipeline/data/
 breach_cache/
+# Control Tower: the data as served (control_tower.py)
+control_tower_cache.json.gz
+# the Control Tower sheet itself: a download of order data, not code
+Control Tower.xlsx
 *.tmp
 .cache/
 # local clone of SupertailsPCPL/analytics-scripts (its own git repo)

@@ -5,6 +5,8 @@ google-auth==2.58.0
 google-auth-httplib2==0.4.2
 google-auth-oauthlib==1.4.1
 pymysql==1.2.3
+# The Control Tower's EDD dump reads the promise engine's orderpromises from MongoDB.
+pymongo==4.18.3
 python-dotenv==1.2.3
 python-multipart==0.0.32
 requests==2.34.2

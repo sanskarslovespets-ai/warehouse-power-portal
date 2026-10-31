@@ -40,6 +40,7 @@ import auth
 import analytics_recon
 import analytics_status
 import breach_explorer
+import control_tower
 import daily_refresh
 import dropdown_cache
 import entries_store
@@ -80,7 +81,7 @@ VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".3gp", ".webm", ".mkv", ".avi"}
 # The database-backed caches behind the dashboards, by the name the page shows them under. Each is
 # re-pulled every morning (daily_refresh.py) and by the top bar's Refresh from DB.
 DB_CACHES = {"RTO Status": rto_delivered, "RTO MDND": rto_mdnd, "RTO Reconciliation": rto_recon,
-             "Breach Explorer": breach_explorer}
+             "Breach Explorer": breach_explorer, "Control Tower": control_tower}
 # The tabs each cache feeds: the top bar shows, and refreshes, only the caches behind someone's own tabs
 # (so Refresh from DB on the RTO tabs doesn't also start the Breach Explorer's ten-minute run).
 CACHE_TABS = {
@@ -88,6 +89,7 @@ CACHE_TABS = {
     "rto_mdnd": {"rto-analytics", "rto-mdnd"},
     "rto_recon": {"rto-analytics", "rto-recon"},
     "breach_explorer": {tab for tab, group in users.TAB_GROUP.items() if group == "Breach Explorer"},
+    "control_tower": {"control-tower"},
 }
 
 # A forced refresh re-runs the full source queries (the Delivery Note scan takes minutes on the
@@ -116,6 +118,7 @@ async def lifespan(_app):
     for module in DB_CACHES.values():
         module.refresh_cache_async()
     daily_refresh.start(_daily_refresh)
+    control_tower.start_schedule()  # the Control Tower is also rebuilt every 30 minutes
     yield
 
 
@@ -732,6 +735,37 @@ def breach_explorer_data(dataset: str, request: Request):
     found = breach_explorer.payload(dataset)
     if not found:
         raise HTTPException(503, "This tab has no data yet.")
+    gz, etag = found
+    headers = {"ETag": etag, "Vary": "Accept-Encoding"}
+    if etag in request.headers.get("if-none-match", ""):
+        return Response(status_code=304, headers=headers)
+    if "gzip" in request.headers.get("accept-encoding", ""):
+        return Response(gz, media_type="application/json", headers={**headers, "Content-Encoding": "gzip"})
+    return Response(gzip.decompress(gz), media_type="application/json", headers=headers)
+
+
+# Control Tower (control_tower.py): the Control Tower sheet's Dashboard and Warehouse Pendency tabs, one JSON.
+
+@app.get("/api/control-tower/status")
+def control_tower_status():
+    """When the data was built and whether a rebuild is running; the tab follows a rebuild with it."""
+    return control_tower.snapshot()
+
+
+@app.post("/api/control-tower/refresh", status_code=202)
+def control_tower_refresh():
+    """The tab's Refresh data: rebuilds from both databases now, at most once per cooldown."""
+    _force_refresh(control_tower)
+    return control_tower.snapshot()
+
+
+@app.get("/api/control-tower")
+def control_tower_data(request: Request):
+    """The data as last built, gzipped once when built; a page already holding this version (If-None-Match) gets
+    an empty 304."""
+    found = control_tower.payload()
+    if not found:
+        raise HTTPException(503, "The Control Tower has no data yet.")
     gz, etag = found
     headers = {"ETag": etag, "Vary": "Accept-Encoding"}
     if etag in request.headers.get("if-none-match", ""):

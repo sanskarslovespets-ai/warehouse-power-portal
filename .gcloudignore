@@ -15,6 +15,8 @@ secrets/
 breach_pipeline/data/
 breach_cache/
 dropdown_cache.csv
+control_tower_cache.json*
+Control Tower.xlsx
 *.tmp
 .cache/
 

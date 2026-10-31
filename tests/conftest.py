@@ -1,6 +1,7 @@
 """Shared by every test: an in-memory stand-in for scm.warehouse_users and warehouse_user_access, so no
 test reaches MySQL, with two admins ("tester" and "wh.user") for tests that only need to be signed in;
-and the Breach Explorer kept in a temporary folder, with its exports never started in the background."""
+and the Breach Explorer and the Control Tower kept in temporary folders, never reaching a database in the
+background."""
 import os
 import sys
 import time
@@ -12,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import auth  # noqa: E402
 import breach_explorer  # noqa: E402
+import control_tower  # noqa: E402
 import users  # noqa: E402
 
 
@@ -84,3 +86,18 @@ def breach(tmp_path, monkeypatch):
     monkeypatch.setattr(breach_explorer, "refresh_cache_async", lambda force=False: started.append(force))
     monkeypatch.setattr(breach_explorer, "started", started, raising=False)
     return breach_explorer
+
+
+@pytest.fixture(autouse=True)
+def tower(tmp_path, monkeypatch):
+    """control_tower.py with no data yet, its cache in a temporary folder. A build it would start in the background
+    (stale data, Refresh data) is recorded in .started instead; a test that wants a build calls refresh_cache()
+    itself, with fetch_erp and fetch_cp replaced (test_control_tower.py)."""
+    monkeypatch.setattr(control_tower, "CACHE_FILE", str(tmp_path / "control_tower_cache.json.gz"))
+    for name, value in (("_loaded", False), ("_payload", None), ("_fetched_at", None), ("_last_error", None),
+                        ("_last_attempt_at", 0.0)):
+        monkeypatch.setattr(control_tower, name, value)
+    started = []
+    monkeypatch.setattr(control_tower, "refresh_cache_async", lambda force=False: started.append(force))
+    monkeypatch.setattr(control_tower, "started", started, raising=False)
+    return control_tower

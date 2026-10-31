@@ -1,0 +1,31 @@
+/* Warehouse Dashboards > Control Tower (static/js/control_tower.js): what the Breach Explorer's .bx styles don't
+   already give it. */
+
+.bx .ct-views { margin: 0 0 16px; }
+
+/* the Dashboard's cards pick what the table counts */
+.bx button.pcard { width: 100%; font: inherit; text-align: left; cursor: pointer; }
+.bx button.pcard:hover { border-color: var(--border-strong); }
+.bx .pcard.on { border-left-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), var(--shadow-sm); }
+
+.bx .ct-select, .bx .ct-search {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--bx-fill);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+.bx .ct-search { width: 190px; }
+.bx .ct-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--bx-ink-2); cursor: pointer; white-space: nowrap; }
+
+.bx td.ct-due, .bx th.ct-due { font-weight: 700; color: var(--text); }
+.bx td.ct-later { color: var(--bx-faint); }
+.bx td.ct-left, .bx th.ct-left { text-align: left; }
+
+@media (max-width: 760px) {
+  .bx .ct-search { width: 100%; }
+  /* the five things to count wrap rather than push the page sideways */
+  .bx #bx-ct-metric { flex-wrap: wrap; border-radius: 14px; }
+}
