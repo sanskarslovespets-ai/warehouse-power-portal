@@ -4,7 +4,11 @@ substitutions:
   _REGION: asia-south1
   _SERVICE: warehouse-portal
   _REPO: services
-  _RUNTIME_SA: warehouse-portal-runtime@${PROJECT_ID}.iam.gserviceaccount.com
+  # Runs as the analytics-scripts jobs' account: it can read every secret below, including the promise
+  # engine's MongoDB URI (analytics-scripts-mongodb-ordermanager-string), which warehouse-portal-runtime
+  # can't. The entries sheet (GOOGLE_SHEET_ID) and the POD / video Drive folders must be shared with it
+  # as Editor. Switch back to warehouse-portal-runtime@ once that account is given the MongoDB secret.
+  _RUNTIME_SA: analytics-scripts-runtime@${PROJECT_ID}.iam.gserviceaccount.com
   # Direct VPC egress: the ERP read replica (10.190.0.9) is only reachable over prod-vpc.
   # Shared VPC resources owned by sup-network-host, so both must be full resource paths.
   _NETWORK: projects/sup-network-host/global/networks/prod-vpc
@@ -39,8 +43,8 @@ steps:
   # SESSION_SECRET=warehouse-portal-session-secret:latest to --set-secrets.
   # The Control Tower reads the promise engine's MongoDB (orderManagement.orderpromises) for its EDDs.
   # MONGO_URI is the same secret the analytics-scripts control-tower job reads
-  # (analytics-scripts-mongodb-ordermanager-string); the runtime SA must be able to read it, as it does the
-  # other analytics-scripts-* secrets here. MONGO_DB=orderManagement because the URI names no database. The cluster
+  # (analytics-scripts-mongodb-ordermanager-string); the runtime SA (_RUNTIME_SA) must be able to read it.
+  # MONGO_DB=orderManagement because the URI names no database. The cluster
   # is reached over its Atlas private endpoint (Private Service Connect: its hosts resolve to 10.130.0.3),
   # so it goes through prod-vpc like the ERP replica; that endpoint must be reachable from prod-vpc.
   # Never open the cluster's IP access list to 0.0.0.0/0 to get around that.
