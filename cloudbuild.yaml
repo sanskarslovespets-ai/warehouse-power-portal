@@ -38,9 +38,9 @@ steps:
   # secret warehouse-portal-session-secret exists (readable by the runtime SA), add
   # SESSION_SECRET=warehouse-portal-session-secret:latest to --set-secrets.
   # The Control Tower reads the promise engine's MongoDB (orderManagement.orderpromises) for its EDDs.
-  # Until MONGO_URI is set it shows every ideal pickup date on the noon rule and says so. Once a secret
-  # holding the URI exists (readable by the runtime SA), add MONGO_URI=<that secret>:latest to
-  # --set-secrets and MONGO_DB=orderManagement to --set-env-vars (the URI names no database). The cluster
+  # MONGO_URI is the same secret the analytics-scripts control-tower job reads
+  # (analytics-scripts-mongodb-ordermanager-string); the runtime SA must be able to read it, as it does the
+  # other analytics-scripts-* secrets here. MONGO_DB=orderManagement because the URI names no database. The cluster
   # is reached over its Atlas private endpoint (Private Service Connect: its hosts resolve to 10.130.0.3),
   # so it goes through prod-vpc like the ERP replica; that endpoint must be reachable from prod-vpc.
   # Never open the cluster's IP access list to 0.0.0.0/0 to get around that.
@@ -62,8 +62,8 @@ steps:
       - --no-cpu-throttling
       - --memory=2Gi
       - --cpu=1
-      - --set-env-vars=ALLOW_WITHOUT_IAP=1,SCM_DB_PORT=3306,SCM_DB_NAME=scm,DN_DB_HOST=10.190.0.9,DN_DB_PORT=3306,DN_DB_NAME=_d958d754a21d63f5,GOOGLE_SHEET_ID=1n5mB90-cGl_6z3eT8JqPRlnYyJdAe25OnOeBvflLl-o,DRIVE_POD_FOLDER_ID=1gFXs62BQVonoSrhyhlX6qmIDUSGv9RrW,DRIVE_VIDEO_FOLDER_ID=1AjU2wVAKpDoWe-WvgUEdt04mqfiZKX1I,ADMIN_USERS=Sanskar
-      - --set-secrets=SCM_DB_HOST=analytics-scripts-mysql-host:latest,SCM_DB_USER=analytics-scripts-mysql-user:latest,SCM_DB_PASSWORD=analytics-scripts-mysql-password:latest,DN_DB_USER=analytics-scripts-erp-read-replica-user:latest,DN_DB_PASSWORD=analytics-scripts-erp-read-replica-password:latest
+      - --set-env-vars=ALLOW_WITHOUT_IAP=1,SCM_DB_PORT=3306,SCM_DB_NAME=scm,DN_DB_HOST=10.190.0.9,DN_DB_PORT=3306,DN_DB_NAME=_d958d754a21d63f5,GOOGLE_SHEET_ID=1n5mB90-cGl_6z3eT8JqPRlnYyJdAe25OnOeBvflLl-o,DRIVE_POD_FOLDER_ID=1gFXs62BQVonoSrhyhlX6qmIDUSGv9RrW,DRIVE_VIDEO_FOLDER_ID=1AjU2wVAKpDoWe-WvgUEdt04mqfiZKX1I,ADMIN_USERS=Sanskar,MONGO_DB=orderManagement
+      - --set-secrets=SCM_DB_HOST=analytics-scripts-mysql-host:latest,SCM_DB_USER=analytics-scripts-mysql-user:latest,SCM_DB_PASSWORD=analytics-scripts-mysql-password:latest,DN_DB_USER=analytics-scripts-erp-read-replica-user:latest,DN_DB_PASSWORD=analytics-scripts-erp-read-replica-password:latest,MONGO_URI=analytics-scripts-mongodb-ordermanager-string:latest
 
 images:
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
