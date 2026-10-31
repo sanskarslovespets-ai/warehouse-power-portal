@@ -5,8 +5,8 @@ entries, and dashboards over the SCM and ERP databases.
 
 The sidebar groups the sections by area: **RTO** (Analytics, Process, Status,
 MDND, Reconciliation), **Breach Explorer** (Breach analysis, Pendency,
-Complaints, RTO, Connection view, RAD to OFD; see below) and, for admins,
-**Users**. Click an area to open or close it; the page remembers which you
+Complaints, RTO, Connection view, RAD to OFD; see below), **Warehouse
+Dashboards** (Control Tower; see below) and, for admins, **Users**. Click an area to open or close it; the page remembers which you
 closed.
 
 **Adding a section later** (all in `static/index.html`):
@@ -209,6 +209,49 @@ by tab on the Users page like any other:
   original's Refresh data rebuilt all six tabs (6-10 minutes) for anyone; here
   it refreshes the tab you're on, for editors and admins.
 
+### Warehouse Dashboards → Control Tower
+
+The "Control Tower" Google Sheet's **Dashboard** and **Warehouse Pendency**
+tabs, built from the databases instead of the sheet's ERP, CP and EDD dumps
+(`control_tower.py`, `static/js/control_tower.js`). One sidebar item, with the
+two as views inside it; given to people on the Users page like any other tab.
+
+| View | What it shows |
+|---|---|
+| **Dashboard** | Delivery notes per facility by ideal pickup date (each of the last 7 days, earlier, later): picking pendency, AWB not generated, pickup pending, hyperlocal, or any one status; and by order date, Unfulfilled WH, Hold and shipped DNs the promise engine gave no EDD |
+| **Warehouse Pendency** | The mother warehouses' DNs with no AWB yet, still being picked or packed: by warehouse and DN by DN, with days late and Export CSV |
+
+- **Data:** the sheet's three dump queries, over whole days in India time:
+  - the **ERP dump** (sales order items of today and the 6 days before, with their DNs and pick
+    lists) on the ERP replica. Its CTEs run one by one and are joined in Python, because MariaDB
+    runs the query as written by brute-force joins (still going after 12 minutes); see the top of
+    `control_tower.py`;
+  - the **CP dump** on `scm.cp_database`, for each AWB's Clickpost status;
+  - the **EDD dump** on the promise engine's `orderpromises` (MongoDB), for each order's cutoff
+    days (TOTAL_CUTOFF) at each warehouse. Set `MONGO_URI` (and `MONGO_DB` if the URI names no
+    database). Without it, the page still builds, puts every ideal pickup date on the noon rule,
+    and says so.
+
+  The CP and EDD dumps go one day further back than the ERP's. The sheet's derived columns (ideal
+  pickup date, status, courier, facility type) and its Facts tab are in the same file.
+- **Refresh:** every 30 minutes, whether or not anyone has the tab open
+  (counted from when the last build started), plus the 9:00 run, Refresh from
+  DB, and the tab's own Refresh data (editors and admins; not again within 10
+  minutes). A build takes about 3 minutes (all three sources at once). A failed
+  build keeps the previous data, says why, and is tried again after 10 minutes.
+  An open tab picks up new data within 5 minutes, through the top bar's check.
+  The data is served from `control_tower_cache.json.gz`, kept out of git.
+- **Differences from the sheet:**
+  - Facilities come from the data, so new darkstores and warehouses (Kolkata Dankuni, Chennai
+    Kovur) appear without editing a list.
+  - Totals add up every row, and courier names have one spelling each.
+  - The CP dump includes today; the sheet's `order_date <= '<today>'` compares text and left
+    today's AWBs out.
+  - A promise for a warehouse missing from the Facts tab's list still counts, under its own code.
+    The sheet dropped those (about 25 darkstores and dropship partners).
+  - The sheet's DS Dashboard and Dashboard 2.0 tabs, and its Warehouse to Darkstores block (its
+    route list no longer matches any data), are not here.
+
 `python3 main.py` is shorthand for `python3 -m uvicorn main:app --reload --port 5659`.
 
 ## 4. Data refresh: every morning at 9:00, plus Refresh from DB
@@ -343,7 +386,8 @@ whoever administers `analytics-db.supertails.com`).
 | `users.py` | Roles and tab access (`scm.warehouse_user_access`): which API belongs to which tab, what each role may do there, and the Users page's changes |
 | `breach_explorer.py` | The Breach Explorer tabs' data: runs the exports in `breach_pipeline/` (daily, on Refresh from DB, and each tab's own Refresh data), checks and serves each tab's JSON from `breach_cache/`, and the shipment-level Export CSV |
 | `breach_pipeline/` | The SLA Breach Explorer's export scripts and mapping workbooks, copied unchanged from `edd-observability` (except `db/connection.py`; see its README) |
-| `static/` | Frontend: `index.html` + `login.html` + `css/` + `js/` — plain static files (vanilla HTML/CSS/JS, no templating, no build step). The Breach Explorer tabs are `js/be_*.js` and `css/breach_explorer.css` |
+| `control_tower.py` | The Control Tower's data: the ERP, CP and EDD dump queries, the sheet's derived columns, and the cached JSON its two views read |
+| `static/` | Frontend: `index.html` + `login.html` + `css/` + `js/` — plain static files (vanilla HTML/CSS/JS, no templating, no build step). The Breach Explorer tabs are `js/be_*.js` and `css/breach_explorer.css`; the Control Tower is `js/control_tower.js` and `css/control_tower.css` |
 | `archive/flask-version/` | The pre-FastAPI (Flask) `app.py`, template and tests, kept for reference |
 
 This follows the standard layout for internal portals (see

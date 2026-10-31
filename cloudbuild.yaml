@@ -30,12 +30,20 @@ steps:
   #     --service=warehouse-portal --member=domain:supertails.com --role=roles/iap.httpsResourceAccessor
   # then swap ALLOW_WITHOUT_IAP=1 below for
   # IAP_AUDIENCE=/projects/${PROJECT_NUMBER}/locations/${_REGION}/services/${_SERVICE}.
-  # min-instances=1 + no-cpu-throttling keep the 9:00 IST refresh thread alive; max-instances=1
+  # min-instances=1 + no-cpu-throttling keep the 9:00 IST refresh thread (and the Control Tower's
+  # 30-minute rebuild) alive; max-instances=1
   # because entries live in a per-instance SQLite file and each instance would re-scan the DBs.
   # ADMIN_USERS are the warehouse_users usernames who always manage roles on the Users page.
   # Without SESSION_SECRET everyone is signed out on each deploy or restart; once the Secret Manager
   # secret warehouse-portal-session-secret exists (readable by the runtime SA), add
   # SESSION_SECRET=warehouse-portal-session-secret:latest to --set-secrets.
+  # The Control Tower reads the promise engine's MongoDB (orderManagement.orderpromises) for its EDDs.
+  # Until MONGO_URI is set it shows every ideal pickup date on the noon rule and says so. Once a secret
+  # holding the URI exists (readable by the runtime SA), add MONGO_URI=<that secret>:latest to
+  # --set-secrets and MONGO_DB=orderManagement to --set-env-vars (the URI names no database). The cluster
+  # is reached over its Atlas private endpoint (Private Service Connect: its hosts resolve to 10.130.0.3),
+  # so it goes through prod-vpc like the ERP replica; that endpoint must be reachable from prod-vpc.
+  # Never open the cluster's IP access list to 0.0.0.0/0 to get around that.
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: gcloud
