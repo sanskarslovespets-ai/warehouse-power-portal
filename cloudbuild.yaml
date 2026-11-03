@@ -40,7 +40,7 @@ steps:
   # The Control Tower reads the promise engine's MongoDB (orderManagement.orderpromises) for its EDDs.
   # MONGO_URI is the same secret the analytics-scripts control-tower job reads
   # (analytics-scripts-mongodb-ordermanager-string); the runtime SA (_RUNTIME_SA) has Secret Manager Secret
-  # Accessor on it (granted 2026-11-02). Without that, Cloud Run refuses the revision (SecretsAccessCheckFailed).
+  # Accessor on it (granted 2026-11-03). Without that, Cloud Run refuses the revision (SecretsAccessCheckFailed).
   # MONGO_DB=orderManagement because the URI names no database. The cluster
   # is reached over its Atlas private endpoint (Private Service Connect: its hosts resolve to 10.130.0.3),
   # so it goes through prod-vpc like the ERP replica; that endpoint must be reachable from prod-vpc.
