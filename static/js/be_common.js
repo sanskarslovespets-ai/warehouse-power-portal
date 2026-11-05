@@ -195,6 +195,7 @@
   const TAB_NAMES = {
     breach: "Breach analysis", pendency: "Pendency", "pendency-detail": "Pendency", complaints: "Complaints",
     rto: "RTO", connection: "Connection view", radofd: "RAD to OFD",
+    warehouse: "Warehouse Exceptions", // static/js/wh_exceptions.js, under Warehouse Dashboards
   };
 
   function tab(opts) {

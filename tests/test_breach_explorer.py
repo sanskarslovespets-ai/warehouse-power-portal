@@ -20,6 +20,8 @@ GOOD = {  # the smallest output of each export that the panel will serve
     "radofd": {"by_city": {"dims": {}, "facts": [[0] * 11]}, "by_hub": {"dims": {}, "facts": []}},
     "complaints": {"dims": {}, "facts": [[0] * 10]},
     "rto": {"dims": {}, "facts": [[0] * 17]},
+    "warehouse": {"notfound": {"dims": {}, "facts": [], "base": [[0, 0, 5, 0]]},
+                  "pendency": {"asOf": "2026-11-06 09:01", "packing": []}, "complaints": {"rows": []}},
 }
 ERP_DOWN = "pymysql.err.OperationalError: (2003, \"Can't connect to MySQL server on 'erp'\")"
 
@@ -175,7 +177,7 @@ def test_refreshes_asked_for_during_a_run_join_it_and_none_runs_twice(breach, mo
     monkeypatch.setattr(breach, "_export", exporting)
     breach.refresh_tab("connection", cooldown=0)
     breach.refresh_cache()
-    assert ran == ["connection", "rto", "breach", "pendency-detail", "pendency", "radofd", "complaints"]
+    assert ran == ["connection", "rto", "breach", "pendency-detail", "pendency", "radofd", "complaints", "warehouse"]
     state = breach.status()
     assert state["queued"] == [] and state["running"] is None and not breach.is_refreshing()
 
@@ -239,6 +241,78 @@ def test_each_tab_s_data_is_only_for_people_given_that_tab(main, accounts, breac
 
     assert rto_only.get("/api/breach-explorer/pendency").status_code == 403
     assert rto_only.get("/api/breach-explorer/status").status_code == 200  # freshness only, for everyone
+
+
+def test_warehouse_exceptions_is_its_own_tab_under_warehouse_dashboards(main, accounts, breach):
+    write_exports(breach)
+    breach.refresh_cache(force=True)
+    accounts.add("wx.view", "warehouse-pass", "viewer", ["warehouse-exceptions"])
+    accounts.add("wx.ed", "warehouse-pass", "editor", ["warehouse-exceptions"])
+    accounts.add("pen", "pendency-pass", "editor", ["be-pendency"])
+    viewer, editor, pen = (client(main, accounts, name) for name in ("wx.view", "wx.ed", "pen"))
+
+    assert viewer.get("/api/me").json()["panels"] == ["warehouse-exceptions"]
+    assert viewer.get("/api/breach-explorer/warehouse").json() == GOOD["warehouse"]
+    assert viewer.get("/api/breach-explorer/pendency").status_code == 403  # none of the Breach Explorer's tabs
+    r = pen.get("/api/breach-explorer/warehouse")
+    assert r.status_code == 403 and r.json() == {"error": "You don't have access to the Warehouse Exceptions tab."}
+
+    r = viewer.post("/api/breach-explorer/warehouse/refresh")
+    assert r.status_code == 403 and r.json() == {"error": "Your access to the Warehouse Exceptions tab is view-only."}
+    assert editor.post("/api/breach-explorer/warehouse/refresh").status_code == 429  # its data is seconds old
+    assert pen.post("/api/breach-explorer/warehouse/refresh").status_code == 403
+
+
+def test_warehouse_data_missing_a_part_is_not_served(breach):
+    good = GOOD["warehouse"]
+    write_exports(breach, warehouse={**good, "complaints": None})
+    breach.refresh_cache(force=True)
+    assert breach.status()["datasets"]["warehouse"]["error"] == "build_warehouse_data.py ran, but it has no complaints data"
+    write_exports(breach, warehouse={**good, "pendency": {"asOf": ""}})
+    breach.refresh_cache(force=True)
+    assert breach.status()["datasets"]["warehouse"]["error"] == "build_warehouse_data.py ran, but it has no pendency snapshot time"
+    assert breach.payload("warehouse") is None
+
+
+def test_the_warehouse_bundle_is_all_three_exports_or_nothing(tmp_path):
+    """build_warehouse_data.py itself (the one script in breach_pipeline/scripts that isn't upstream's), on stand-in
+    exports: it bundles their three payloads, and stops at the first that fails, leaving no bundle behind."""
+    import shutil
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    real = Path(__file__).resolve().parent.parent / "breach_pipeline" / "scripts" / "build_warehouse_data.py"
+    shutil.copy(real, scripts)
+
+    def export(script, output, payload=None, fails=None):
+        body = (f"import sys\nsys.exit({fails!r})\n" if fails else textwrap.dedent(f"""
+            import json, os
+            out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", {output!r})
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            with open(out, "w") as f:
+                json.dump({payload!r}, f)
+        """))
+        (scripts / script).write_text(body)
+
+    export("export_warehouse_notfound.py", "notfound_payload.json", {"base": [[0, 0, 5, 0]]})
+    export("export_warehouse_pendency.py", "pendency_payload.json", {"asOf": "2026-11-06 09:01"})
+    export("export_warehouse_complaints.py", "complaints_payload.json", {"rows": [[1]]})
+    run = subprocess.run([sys.executable, str(scripts / "build_warehouse_data.py")], capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr
+    bundle = json.loads((tmp_path / "data" / "warehouse_data.json").read_text())
+    assert bundle == {"notfound": {"base": [[0, 0, 5, 0]]}, "pendency": {"asOf": "2026-11-06 09:01"},
+                      "complaints": {"rows": [[1]]}}
+
+    (tmp_path / "data" / "warehouse_data.json").unlink()
+    export("export_warehouse_pendency.py", "pendency_payload.json", fails=ERP_DOWN)
+    run = subprocess.run([sys.executable, str(scripts / "build_warehouse_data.py")], capture_output=True, text=True)
+    assert run.returncode != 0
+    assert run.stderr.strip().splitlines()[-1] == f"export_warehouse_pendency.py failed: {ERP_DOWN}"
+    assert not (tmp_path / "data" / "warehouse_data.json").exists()
+    assert not (tmp_path / "data" / "pendency_payload.json").exists()  # last run's file isn't left to look new
 
 
 def test_refresh_data_is_for_the_tab_s_editors_and_not_again_within_minutes(main, accounts, breach, monkeypatch):
@@ -382,7 +456,8 @@ def test_the_top_bar_shows_and_refreshes_only_the_data_behind_your_tabs(main, ac
 
 def test_the_users_page_shows_each_tab_under_its_sidebar_group(main, accounts):
     tabs = client(main, accounts, "tester").get("/api/users").json()["tabs"]
-    assert [t["group"] for t in tabs] == ["RTO"] * 5 + ["Breach Explorer"] * 6 + ["Warehouse Dashboards"]
+    assert [t["group"] for t in tabs] == ["RTO"] * 5 + ["Breach Explorer"] * 6 + ["Warehouse Dashboards"] * 2
+    assert {"id": "warehouse-exceptions", "name": "Warehouse Exceptions", "group": "Warehouse Dashboards"} in tabs
     assert {"id": "be-rto", "name": "RTO", "group": "Breach Explorer"} in tabs
     r = client(main, accounts, "tester").post("/api/users", json={
         "username": "pendency.only", "password": "long-enough-1", "role": "viewer", "tabs": ["be-pendency", "be-rto"]})

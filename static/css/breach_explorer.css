@@ -466,6 +466,67 @@
   color: var(--bx-ink-2);
 }
 
+/* ---------- Warehouse Exceptions (static/js/wh_exceptions.js): what its page has that the tabs above don't ---------- */
+.wx {
+  /* a colour per warehouse that runs bin determination, in order; grey for the ones that don't */
+  --wx-s1: var(--chart-series-1);
+  --wx-s2: var(--chart-series-2);
+  --wx-s3: var(--chart-series-3);
+  --wx-s4: var(--chart-series-4);
+  --wx-s5: #8b5cf6;
+  --wx-s6: #db2777;
+  --wx-s7: #0e7490;
+  --wx-dead: #a3a29b;
+  /* lateness / rate, mildest to worst (upstream's sev-1..4, in the panel's error reds) */
+  --wx-sev-1: #fdecea;
+  --wx-sev-2: #f6b8ad;
+  --wx-sev-3: #e0604a;
+  --wx-sev-4: #a3271a;
+}
+.bx .wx-views { margin: 0 0 8px; flex-wrap: wrap; }
+.bx .wx-views .wx-count { margin-left: 7px; font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--muted); }
+.bx .wx-blurb { margin: 4px 0 6px; max-width: 80ch; font-size: 13px; color: var(--bx-ink-2); }
+.bx .wx-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-right: 6px; }
+.bx .wx-note { margin: 0; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+.bx .wx-note:empty { display: none; }
+.bx.wx .phead .right .clabel { margin: 0 -2px 0 6px; }
+.bx.wx select {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  padding: 4px 8px;
+  max-width: 220px;
+}
+.bx.wx thead th[data-k] { cursor: pointer; }
+.bx.wx thead th[data-k]:hover { color: var(--text); }
+.bx.wx thead th .arrow { margin-left: 4px; font-size: 8px; opacity: 0.7; }
+.bx.wx .mono { font-family: var(--font-mono); font-size: 12px; }
+.bx.wx .wx-dot { display: inline-block; width: 9px; height: 9px; margin-right: 8px; border-radius: 2px; vertical-align: 0; }
+.bx.wx .rank { display: inline-block; width: 28px; color: var(--bx-faint); font-size: 11px; }
+.bx.wx .sub { display: block; max-width: 44ch; font-size: 11.5px; color: var(--muted); white-space: normal; }
+.bx.wx tbody tr.inactive td { color: var(--muted); }
+.bx.wx tbody tr.total td { font-weight: 700; background: var(--bx-fill-2); border-top: 2px solid var(--border-strong); }
+/* severity pills: % of DNs, days late / open */
+.bx.wx .pill { background: var(--bx-fill); color: var(--bx-ink-2); }
+.bx.wx .pill.l1 { background: var(--wx-sev-1); color: var(--error); }
+.bx.wx .pill.l2 { background: var(--wx-sev-2); color: #6b1a10; }
+.bx.wx .pill.l3 { background: var(--wx-sev-3); color: #fff; }
+.bx.wx .pill.l4 { background: var(--wx-sev-4); color: #fff; }
+.bx.wx .pill.dead {
+  min-width: 0;
+  color: var(--muted);
+  background: repeating-linear-gradient(135deg, var(--bx-fill), var(--bx-fill) 3px, transparent 3px, transparent 6px);
+  border: 1px solid var(--border-strong);
+}
+/* a rate or count with its bar, on one scale per table */
+.bx.wx .ratewrap { display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
+.bx.wx .track { flex: none; width: 70px; height: 5px; overflow: hidden; border-radius: 2px; background: var(--bx-fill-2); }
+.bx.wx .ratebar, .bx.wx .qtybar { display: block; height: 5px; min-width: 2px; border-radius: 2px; background: var(--wx-sev-3); }
+
 @media (max-width: 760px) {
   .bx .panel-head { flex-wrap: wrap; }
   .bx .controls { position: static; }

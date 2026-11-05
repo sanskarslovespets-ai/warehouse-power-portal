@@ -6,7 +6,7 @@ entries, and dashboards over the SCM and ERP databases.
 The sidebar groups the sections by area: **RTO** (Analytics, Process, Status,
 MDND, Reconciliation), **Breach Explorer** (Breach analysis, Pendency,
 Complaints, RTO, Connection view, RAD to OFD; see below), **Warehouse
-Dashboards** (Control Tower; see below) and, for admins, **Users**. Click an area to open or close it; the page remembers which you
+Dashboards** (Control Tower, Warehouse Exceptions; see below) and, for admins, **Users**. Click an area to open or close it; the page remembers which you
 closed.
 
 **Adding a section later** (all in `static/index.html`):
@@ -252,6 +252,43 @@ two as views inside it; given to people on the Users page like any other tab.
   - The sheet's DS Dashboard and Dashboard 2.0 tabs, and its Warehouse to Darkstores block (its
     route list no longer matches any data), are not here.
 
+### Warehouse Dashboards → Warehouse Exceptions
+
+The SLA Breach Explorer site's other page,
+`breach-explorer.apps.internal.supertails.com/warehouse`, served here behind the
+panel's own sign-in like the Breach Explorer tabs. One sidebar item
+(**Exceptions**), with the page's five views inside it; given to people on the
+Users page as "Warehouse Exceptions".
+
+| View | What it counts |
+|---|---|
+| **Not found** | Stock the packer couldn't find during bin determination, moved into the `Suspense-MWH_*` bin against a delivery note: by warehouse, bin and SKU, over a date range (last 16 weeks) |
+| **Packing pendency** | Open delivery notes still To Be Picked or Under Picking (IWT excluded), aged against their ideal dispatch date: the team's "Ideal Dispatch Date Pendency" sheet |
+| **Putback pendency** | Notes in Put Back Initiated: stock pulled for an order that didn't ship |
+| **RTO initiated pendency** | Return Initiated notes of type RTO Return (RVP excluded) |
+| **Complaints** | Wrong / missing / damaged / expired tickets traced to the shipping warehouse, and damage by courier |
+
+- **Data:** that page's own three export scripts, copied unchanged into
+  `breach_pipeline/scripts/export_warehouse_*.py`, run by
+  `build_warehouse_data.py` into one dataset (`warehouse`) that
+  `breach_explorer.py` serves, refreshes and keeps like the Breach Explorer's.
+  They read the ERP replica and `scm` (complaints, ClickPost). A run takes about
+  2 minutes. Like the original, it's all or nothing: if one export fails, the
+  page keeps the previous data and says why.
+- **Dispatch cutoff:** packing pendency's ideal dispatch date uses the promise
+  engine's Standard A cutoff (`promiseEngine.warehouse_cutoffs`, read with
+  `PROMISE_DB_*`). Without those settings it uses 14:00, which is what all
+  seven warehouses are set to today; the original does the same when it can't
+  reach that host.
+- **Refresh:** the 9:00 run, Refresh from DB, and the page's Refresh data
+  (editors and admins; not again within 10 minutes).
+- **Same numbers:** checked against the original page built from the same
+  data: every table, note and CSV export, after the same filters, sorts and
+  date picks, came out identical.
+- **Differences from the original:** Export CSV keeps cells a spreadsheet would
+  run as a formula as text, and a fifth warehouse running bin determination gets
+  its own colour (the original had four).
+
 `python3 main.py` is shorthand for `python3 -m uvicorn main:app --reload --port 5659`.
 
 ## 4. Data refresh: every morning at 9:00, plus Refresh from DB
@@ -384,10 +421,10 @@ whoever administers `analytics-db.supertails.com`).
 | `security.py` | Who may use the panel (IAP token check, or this machine only, then a signed-in session), cross-site write blocking, audit log, security headers |
 | `auth.py` | The sign-in: username/password check against `scm.warehouse_users`, signed session cookies, lockout after repeated wrong passwords |
 | `users.py` | Roles and tab access (`scm.warehouse_user_access`): which API belongs to which tab, what each role may do there, and the Users page's changes |
-| `breach_explorer.py` | The Breach Explorer tabs' data: runs the exports in `breach_pipeline/` (daily, on Refresh from DB, and each tab's own Refresh data), checks and serves each tab's JSON from `breach_cache/`, and the shipment-level Export CSV |
+| `breach_explorer.py` | The Breach Explorer tabs' and Warehouse Exceptions' data: runs the exports in `breach_pipeline/` (daily, on Refresh from DB, and each tab's own Refresh data), checks and serves each tab's JSON from `breach_cache/`, and the shipment-level Export CSV |
 | `breach_pipeline/` | The SLA Breach Explorer's export scripts and mapping workbooks, copied unchanged from `edd-observability` (except `db/connection.py`; see its README) |
 | `control_tower.py` | The Control Tower's data: the ERP, CP and EDD dump queries, the sheet's derived columns, and the cached JSON its two views read |
-| `static/` | Frontend: `index.html` + `login.html` + `css/` + `js/` — plain static files (vanilla HTML/CSS/JS, no templating, no build step). The Breach Explorer tabs are `js/be_*.js` and `css/breach_explorer.css`; the Control Tower is `js/control_tower.js` and `css/control_tower.css` |
+| `static/` | Frontend: `index.html` + `login.html` + `css/` + `js/` — plain static files (vanilla HTML/CSS/JS, no templating, no build step). The Breach Explorer tabs are `js/be_*.js` and `css/breach_explorer.css`; Warehouse Exceptions is `js/wh_exceptions.js` (styles in `css/breach_explorer.css`); the Control Tower is `js/control_tower.js` and `css/control_tower.css` |
 | `archive/flask-version/` | The pre-FastAPI (Flask) `app.py`, template and tests, kept for reference |
 
 This follows the standard layout for internal portals (see
@@ -456,7 +493,8 @@ credentials and queries stay server-side and the page and API share one origin.
   within that minute.
 - The Breach Explorer's export scripts are a copy. When the original
   dashboard's logic changes in `edd-observability`, copy the changed scripts
-  into `breach_pipeline/` (and port any page change to `static/js/be_*.js`),
+  into `breach_pipeline/` (and port any page change to `static/js/be_*.js`, or
+  for the warehouse page `static/js/wh_exceptions.js`),
   or the two will drift apart. The original service still runs on its own and
   queries the same databases each morning too.
 - On Cloud Run specifically, three things in this copy don't fit yet (the

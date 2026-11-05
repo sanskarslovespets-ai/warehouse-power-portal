@@ -14,10 +14,16 @@ export writes one tab's data, a dictionary-encoded aggregate, as JSON, and the t
 
 The exports run one after another, each in its own Python process: the breach export pulls ~3.5 months of
 deliveries into memory, and that memory goes back to the system when the process ends. A full run takes about
-6-10 minutes. They read scm (SCM_DB_*) and, for Complaints and RTO, the ERP replica (DN_DB_*).
+6-10 minutes. They read scm (SCM_DB_*) and, for Complaints, RTO and Warehouse Exceptions, the ERP replica
+(DN_DB_*).
 
 Also here: the Connection view and RAD to OFD tabs' Export CSV, which reads shipment-level rows straight from
 cp_database_N because the tabs only hold aggregates (upstream's service/app/detail.py).
+
+And the same site's other page, Warehouse Exceptions (breach-explorer.apps.internal.supertails.com/warehouse),
+which is the Warehouse Exceptions tab under Warehouse Dashboards (static/js/wh_exceptions.js): one dataset,
+"warehouse", built by breach_pipeline/scripts/build_warehouse_data.py from that page's three exports. Like
+upstream's page it is all or nothing: if one of the three fails, the tab keeps the previous data.
 """
 import gzip
 import json
@@ -50,7 +56,9 @@ DATASETS = {
     "radofd": ("export_rad_ofd_data.py", "rad_ofd_data.json", "RAD to OFD"),
     "complaints": ("export_complaints_data.py", "complaints_data.json", "Complaints"),
     "rto": ("export_rto_data.py", "rto_data.json", "RTO"),
+    "warehouse": ("build_warehouse_data.py", "warehouse_data.json", "Warehouse Exceptions"),  # ERP replica too
 }
+WAREHOUSE_PARTS = ("notfound", "pendency", "complaints")  # the warehouse dataset: one payload per export
 # What each tab's Refresh data re-runs, by the dataset the tab shows: Pendency's also re-pulls the shipment list
 # behind its Export CSV, so the file keeps matching the table.
 TAB_EXPORTS = {
@@ -60,6 +68,7 @@ TAB_EXPORTS = {
     "rto": ("rto",),
     "connection": ("connection",),
     "radofd": ("radofd",),
+    "warehouse": ("warehouse",),
 }
 BREACH_FACT_WIDTH = 31  # columns per breach fact row; static/js/be_breach.js reads them by position
 STEP_TIMEOUT_SECONDS = 1800  # one export; the breach export's scan normally takes a few minutes
@@ -116,6 +125,15 @@ def _tail(text, lines):
 def _problem(name, data):
     """Why an export's JSON can't be served, or None. The checks upstream's refresh_dashboard.py makes
     before it puts a payload in the page."""
+    if name == "warehouse":
+        missing = [part for part in WAREHOUSE_PARTS if not isinstance(data.get(part), dict)]
+        if missing:
+            return f"it has no {' or '.join(missing)} data"
+        if not data["notfound"].get("base"):
+            return "it found no delivery notes raised in its window"
+        if not data["pendency"].get("asOf"):
+            return "it has no pendency snapshot time"
+        return None
     if name == "pendency-detail":
         rows = data.get("rows")
     elif name == "radofd":

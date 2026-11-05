@@ -88,7 +88,8 @@ CACHE_TABS = {
     "rto_delivered": {"rto-analytics", "rto-status"},
     "rto_mdnd": {"rto-analytics", "rto-mdnd"},
     "rto_recon": {"rto-analytics", "rto-recon"},
-    "breach_explorer": {tab for tab, group in users.TAB_GROUP.items() if group == "Breach Explorer"},
+    "breach_explorer": {tab for tab, group in users.TAB_GROUP.items() if group == "Breach Explorer"}
+    | {"warehouse-exceptions"},  # built by the same runner (breach_explorer.py)
     "control_tower": {"control-tower"},
 }
 
