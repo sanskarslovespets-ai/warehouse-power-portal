@@ -122,13 +122,17 @@ Admins add people and set what they can open on the **Users** page (below).
   password."), so the page doesn't reveal which usernames exist.
 - 5 wrong passwords for one username within 15 minutes lock that username for
   15 minutes.
-- A sign-in lasts 12 hours (`SESSION_HOURS` in `auth.py`), or until **Sign
-  out** in the top bar. Removing someone, changing their password or their
-  tabs reaches them within a minute, even while they're signed in: a new
-  password signs out every session that used the old one.
+- A sign-in lasts 12 hours (`SESSION_HOURS` in `auth.py`) and renews itself
+  while the panel is in use, so a session nobody uses ends 6 to 12 hours after
+  its last request; or until **Sign out** in the top bar. Someone signed out
+  this way lands on the sign-in page with "You were signed out", not a silent
+  bounce. Removing someone, changing their password or their tabs reaches them
+  within a minute, even while they're signed in: a new password signs out
+  every session that used the old one.
 - The session is an HttpOnly cookie signed with `SESSION_SECRET`, so it can't
   be forged or edited. Without that setting, everyone is signed out whenever
-  the server restarts.
+  the server restarts or is redeployed. On Cloud Run it comes from the Secret
+  Manager secret `warehouse-portal-session-secret` (`cloudbuild.yaml`).
 - Every sign-in and wrong attempt is logged (`[auth] ...`), the audit log of
   writes names the warehouse user, and every change on the Users page is
   logged as `[users] ...`.

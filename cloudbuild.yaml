@@ -34,9 +34,10 @@ steps:
   # 30-minute rebuild) alive; max-instances=1
   # because entries live in a per-instance SQLite file and each instance would re-scan the DBs.
   # ADMIN_USERS are the warehouse_users usernames who always manage roles on the Users page.
-  # Without SESSION_SECRET everyone is signed out on each deploy or restart; once the Secret Manager
-  # secret warehouse-portal-session-secret exists (readable by the runtime SA), add
-  # SESSION_SECRET=warehouse-portal-session-secret:latest to --set-secrets.
+  # SESSION_SECRET signs the sign-in cookies (auth.py). It comes from the Secret Manager secret
+  # warehouse-portal-session-secret, which the runtime SA (_RUNTIME_SA) can read (Secret Accessor, granted
+  # 2026-11-06). Without it each start made up its own key, so every deploy, restart or instance swap
+  # signed everyone out mid-use. Rotating that secret signs everyone out once; never put its value here.
   # The Control Tower reads the promise engine's MongoDB (orderManagement.orderpromises) for its EDDs.
   # MONGO_URI is the same secret the analytics-scripts control-tower job reads
   # (analytics-scripts-mongodb-ordermanager-string); the runtime SA (_RUNTIME_SA) has Secret Manager Secret
@@ -64,7 +65,7 @@ steps:
       - --memory=2Gi
       - --cpu=1
       - --set-env-vars=ALLOW_WITHOUT_IAP=1,SCM_DB_PORT=3306,SCM_DB_NAME=scm,DN_DB_HOST=10.190.0.9,DN_DB_PORT=3306,DN_DB_NAME=_d958d754a21d63f5,GOOGLE_SHEET_ID=1n5mB90-cGl_6z3eT8JqPRlnYyJdAe25OnOeBvflLl-o,DRIVE_POD_FOLDER_ID=1gFXs62BQVonoSrhyhlX6qmIDUSGv9RrW,DRIVE_VIDEO_FOLDER_ID=1AjU2wVAKpDoWe-WvgUEdt04mqfiZKX1I,ADMIN_USERS=Sanskar,MONGO_DB=orderManagement
-      - --set-secrets=SCM_DB_HOST=analytics-scripts-mysql-host:latest,SCM_DB_USER=analytics-scripts-mysql-user:latest,SCM_DB_PASSWORD=analytics-scripts-mysql-password:latest,DN_DB_USER=analytics-scripts-erp-read-replica-user:latest,DN_DB_PASSWORD=analytics-scripts-erp-read-replica-password:latest,MONGO_URI=analytics-scripts-mongodb-ordermanager-string:latest
+      - --set-secrets=SCM_DB_HOST=analytics-scripts-mysql-host:latest,SCM_DB_USER=analytics-scripts-mysql-user:latest,SCM_DB_PASSWORD=analytics-scripts-mysql-password:latest,DN_DB_USER=analytics-scripts-erp-read-replica-user:latest,DN_DB_PASSWORD=analytics-scripts-erp-read-replica-password:latest,MONGO_URI=analytics-scripts-mongodb-ordermanager-string:latest,SESSION_SECRET=warehouse-portal-session-secret:latest
 
 images:
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}

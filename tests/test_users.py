@@ -128,7 +128,7 @@ def test_a_removed_users_old_cookie_gets_the_sign_in_page(main, accounts):
     c = client(main.app, accounts, "gone", follow_redirects=False)
     del accounts.rows["gone"]
     users.forget("gone")
-    assert c.get("/").headers["location"] == "/login"
+    assert c.get("/").headers["location"] == "/login?expired=1"
     assert c.get("/login").status_code == 200  # the form, not a redirect back to / (a loop)
 
 
@@ -211,6 +211,16 @@ def test_changing_your_own_password_keeps_you_signed_in(main, accounts):
     assert r.status_code == 200
     assert TestClient(main.app, client=LOCAL, cookies={"wpp_session": r.cookies["wpp_session"]}).get("/api/users").status_code == 200
     assert elsewhere.get("/api/users").status_code == 401
+
+
+def test_a_password_change_is_not_undone_by_a_session_renewal(main, accounts):
+    # An old session (due for renewal) changes its own password: the response must carry only the new
+    # password's cookie, not also a renewal of the old one, which would sign them out on the next click.
+    admin = TestClient(main.app, client=LOCAL, cookies=accounts.cookies("tester", hours_left=2))
+    r = admin.put("/api/users/tester", json={"role": "admin", "tabs": [], "password": "brand-new-pass"})
+    assert r.status_code == 200
+    assert len([v for v in r.headers.get_list("set-cookie") if v.startswith("wpp_session=")]) == 1
+    assert admin.get("/api/users").status_code == 200
 
 
 def test_admin_users_are_admins_whatever_the_table_says(main, accounts, monkeypatch):
