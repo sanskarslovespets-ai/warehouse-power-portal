@@ -263,6 +263,72 @@ def test_warehouse_exceptions_is_its_own_tab_under_warehouse_dashboards(main, ac
     assert pen.post("/api/breach-explorer/warehouse/refresh").status_code == 403
 
 
+def test_a_tab_someone_is_waiting_on_is_built_next(main, accounts, breach):
+    # Just after a restart: the breach export running, every other one queued, Warehouse Exceptions last.
+    breach._running = "breach"
+    breach._queue[:] = ["pendency-detail", "pendency", "connection", "radofd", "complaints", "rto", "warehouse"]
+    admin = client(main, accounts, "tester")
+
+    assert admin.get("/api/breach-explorer/warehouse").status_code == 503
+    assert breach._queue == ["warehouse", "pendency-detail", "pendency", "connection", "radofd", "complaints", "rto"]
+
+    # someone else then opens RTO: it goes next after Warehouse Exceptions, not ahead of it...
+    assert admin.get("/api/breach-explorer/rto").status_code == 503
+    # ...however often either page asks again while it waits
+    admin.get("/api/breach-explorer/warehouse")
+    admin.get("/api/breach-explorer/rto")
+    assert breach._queue == ["warehouse", "rto", "pendency-detail", "pendency", "connection", "radofd", "complaints"]
+
+    # Pendency's shipment list moves with it; the export already running is left alone
+    admin.get("/api/breach-explorer/pendency")
+    assert breach._queue[:4] == ["warehouse", "rto", "pendency-detail", "pendency"] and breach._running == "breach"
+    admin.get("/api/breach-explorer/breach")
+    assert breach._queue[:4] == ["warehouse", "rto", "pendency-detail", "pendency"]
+
+    # once it's run, it's an ordinary export again: queued later, it waits its turn until someone waits on it
+    write_exports(breach)
+    breach._running = None
+    breach.refresh_cache()
+    assert breach._queue == [] and breach._hurried == set()
+    assert admin.get("/api/breach-explorer/warehouse").status_code == 200
+
+
+def test_a_server_shutting_down_stops_its_export_and_what_that_started(breach, tmp_path):
+    import os
+    import threading
+
+    child_pid = tmp_path / "child.pid"
+    write_exports(breach)
+    # like build_warehouse_data.py: an export that starts another, both meant to run for a minute
+    (breach.PIPELINE / "scripts" / "build_warehouse_data.py").write_text(textwrap.dedent(f"""
+        import subprocess, sys, time
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        open({str(child_pid)!r}, "w").write(str(child.pid))
+        time.sleep(60)
+    """))
+    breach._queue[:] = ["warehouse"]
+    run = threading.Thread(target=breach._run)
+    run.start()
+    deadline = time.time() + 10
+    while not (child_pid.exists() and child_pid.read_text()) and time.time() < deadline:
+        time.sleep(0.05)
+    pid = int(child_pid.read_text())
+
+    breach.stop()  # main.py's lifespan, on shutdown
+    run.join(timeout=10)
+    assert not run.is_alive()  # the run didn't wait out the minute
+    assert "stopped with exit code" in breach.status()["datasets"]["warehouse"]["error"]
+    for _ in range(100):  # ...and nothing it started is left running
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        raise AssertionError("the export's own child process is still running")
+    breach.stop()  # nothing running: nothing to do
+
+
 def test_warehouse_data_missing_a_part_is_not_served(breach):
     good = GOOD["warehouse"]
     write_exports(breach, warehouse={**good, "complaints": None})

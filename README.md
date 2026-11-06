@@ -187,6 +187,12 @@ by tab on the Users page like any other:
   one fails (say the ERP replica refuses connections), that tab keeps its
   previous data, says so, and is retried within half an hour while someone
   has the panel open. Each tab shows when its data is from.
+- **A tab opened before its data exists** (the first run after a restart or a
+  deploy: the data lives on the server's own disk) jumps the queue: its export
+  runs as soon as the one running finishes, instead of after every other tab's.
+  Two such tabs are built in the order they were opened. A server that shuts
+  down or restarts stops the export it was running, along with anything that
+  export started, rather than leaving it running on its own.
 - **Refresh data**, at the top of each tab (editors and admins), re-runs just
   that tab's export: a few seconds for Connection view and RAD to OFD, about a
   minute for Breach analysis, 2-3 minutes for RTO. Pendency's also re-pulls the

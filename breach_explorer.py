@@ -28,6 +28,7 @@ upstream's page it is all or nothing: if one of the three fails, the tab keeps t
 import gzip
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -81,7 +82,9 @@ _fetched = {}  # dataset -> when its current data was swapped in (epoch seconds)
 _errors = {}  # dataset -> why its last export failed, until one succeeds
 _payloads = {}  # dataset -> (gzipped JSON, ETag), read from CACHE_DIR when first asked for
 _queue = []  # the exports waiting their turn, in order; a run takes on whatever joins the queue before it ends
+_hurried = set()  # queued exports moved up for someone waiting on their tab (hurry), until they run
 _running = None  # the dataset being exported right now
+_proc = None  # ...and its process, for stop()
 _run_started_at = None
 _last_attempt_at = 0.0
 
@@ -171,6 +174,43 @@ def _fail(name, why):
         _errors[name] = why[:300]
 
 
+def _kill(proc):
+    """Ends an export and anything it started (build_warehouse_data.py runs three exports of its own)."""
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def _run_script(script):
+    """Runs one export script in its own process group, so stop() and the timeout end all of it."""
+    global _proc
+    proc = subprocess.Popen(
+        [sys.executable, str(PIPELINE / "scripts" / script)],
+        cwd=PIPELINE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True,
+    )
+    _proc = proc
+    try:
+        stdout, stderr = proc.communicate(timeout=STEP_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        _kill(proc)
+        proc.communicate()
+        raise
+    finally:
+        _proc = None
+    return subprocess.CompletedProcess(proc.args, proc.returncode, stdout, stderr)
+
+
+def stop():
+    """The server is shutting down (a deploy, a restart, a --reload): ends the export running now. Left alone it
+    carried on with no one to use its data, holding a database connection and up to a gigabyte of memory, while
+    the next start ran it again; a few quick restarts stacked up several copies of the same export."""
+    proc = _proc
+    if proc is not None and proc.poll() is None:
+        print(f"[breach-explorer] shutting down: stopped the {_running} export", flush=True)
+        _kill(proc)
+
+
 def _export(name):
     script, output, _tab = DATASETS[name]
     out = PIPELINE / "data" / output
@@ -178,10 +218,7 @@ def _export(name):
     try:
         out.parent.mkdir(exist_ok=True)
         out.unlink(missing_ok=True)  # so a failed export can't leave the last run's file to be served as new
-        run = subprocess.run(
-            [sys.executable, str(PIPELINE / "scripts" / script)],
-            cwd=PIPELINE, capture_output=True, text=True, timeout=STEP_TIMEOUT_SECONDS,
-        )
+        run = _run_script(script)
         if run.returncode != 0:
             print(f"[breach-explorer] {script} failed:\n{_tail(run.stderr, 20)}", flush=True)
             raise ExportFailed(_tail(run.stderr, 1) or f"{script} stopped with exit code {run.returncode}")
@@ -233,6 +270,27 @@ def refresh_tab(tab, cooldown):
     return None
 
 
+def hurry(name):
+    """Someone has this dataset's tab open and nothing to show them yet: its exports go next, ahead of the others
+    waiting their turn (never ahead of the one running, which is left to finish). Without this, a tab opened
+    after a restart waited for every export queued before it, the Warehouse Exceptions tab for all seven
+    Breach Explorer ones. Pendency's shipment list goes along with it (TAB_EXPORTS). Two tabs waited on are
+    built in the order people asked (_hurried), however often their pages ask again. Does nothing for an export
+    that isn't queued; the page asks again while it waits, so one queued in the meantime is still moved up."""
+    _ensure_loaded()
+    exports = next((e for e in TAB_EXPORTS.values() if name in e), (name,))
+    with _state_lock:
+        waiting = [n for n in exports if n in _queue and n not in _hurried]
+        if not waiting:
+            return
+        for n in waiting:
+            _queue.remove(n)
+        at = next((i for i, n in enumerate(_queue) if n not in _hurried), len(_queue))  # behind earlier waiters
+        _queue[at:at] = waiting
+        _hurried.update(waiting)
+    print(f"[breach-explorer] {', '.join(waiting)} moved up the queue: someone is waiting on it", flush=True)
+
+
 def _run():
     """Works through the queue, one export at a time, until it's empty. Returns at once if another thread is
     already doing that: it takes on whatever is queued before it finishes."""
@@ -249,6 +307,7 @@ def _run():
                     if not _queue:
                         break
                     _running = name = _queue.pop(0)
+                    _hurried.discard(name)
                 _export(name)
         finally:
             with _state_lock:

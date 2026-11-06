@@ -306,10 +306,14 @@
         const mine = st && st.datasets[opts.dataset];
         if (res.status === 503) next = next || STATUS_POLL_MS; // no data yet: follow the export that builds it
         if (res.status === 503 && st && st.refreshing) {
-          const working = st.running && TAB_NAMES[st.running] ? " Working on: " + TAB_NAMES[st.running] +
-            (st.running_for ? " (" + Math.max(1, Math.round(st.running_for / 60)) + " min into this run)." : ".") : "";
+          // Asking for the data just moved this tab's export to the front of the queue (breach_explorer.hurry), so
+          // unless it is the one running, it goes straight after that one.
+          const running = st.running && TAB_NAMES[st.running];
+          const working = progress(st) === "running" ? " Working on it now."
+            : running ? " It's next, as soon as " + running + " finishes" +
+              (st.running_for ? " (" + Math.max(1, Math.round(st.running_for / 60)) + " min in so far)." : ".") : "";
           showState("building", "Building this tab's data",
-            "It comes from the database the first time, which takes several minutes. This tab fills in by itself when it's ready." + working);
+            "It comes from the database the first time, which takes a few minutes. This tab fills in by itself when it's ready." + working);
         } else if (res.status === 503 && mine && mine.error) {
           showState("error", "This tab's data couldn't be built", mine.error + " It tries again automatically within half an hour" +
             (document.body.dataset.role === "viewer" ? "." : ", or press Refresh data to try now."));

@@ -678,12 +678,26 @@
     });
   }
 
-  function drawPend() {
-    renderPacking(); renderSimple("putback"); renderSimple("rto");
-    markSort("pk-wh", pstate.packing.whSort); markSort("pk-tbl", pstate.packing.sort);
-    markSort("pb-wh", pstate.putback.whSort); markSort("pb-tbl", pstate.putback.sort);
-    markSort("rt-wh", pstate.rto.whSort);     markSort("rt-tbl", pstate.rto.sort);
-  }
+  // Each view's drawing (upstream's drawPend drew all three pendency views at once).
+  var RENDER = {
+    notfound: function () { draw(); },
+    packing: function () {
+      renderPacking();
+      markSort("pk-wh", pstate.packing.whSort); markSort("pk-tbl", pstate.packing.sort);
+    },
+    putback: function () {
+      renderSimple("putback");
+      markSort("pb-wh", pstate.putback.whSort); markSort("pb-tbl", pstate.putback.sort);
+    },
+    rto: function () {
+      renderSimple("rto");
+      markSort("rt-wh", pstate.rto.whSort); markSort("rt-tbl", pstate.rto.sort);
+    },
+    complaints: function () { renderComplaints(); }
+  };
+  // Views whose tables are behind the data. Only the view on screen is drawn when data comes in (about half the
+  // work: the five views hold ~1,400 rows); each other one is drawn the first time it is opened.
+  var stale = {};
 
   /* ================= views ================= */
   function views() {
@@ -713,6 +727,7 @@
 
   function showTab(id) {
     current = id;
+    if (stale[id]) { delete stale[id]; RENDER[id](); }
     views().forEach(function (t) {
       $("view-" + t.id).hidden = t.id !== id;
       $("tabs").querySelector('[data-view="' + t.id + '"]').setAttribute("aria-pressed", String(t.id === id));
@@ -766,12 +781,12 @@
     // pendency
     PEND_SELECTS.forEach(function (t) {
       var kind = t[0];
-      $(t[1]).addEventListener("change", function () { pstate[kind].wh = this.value; drawPend(); });
-      $(t[2]).addEventListener("change", function () { pstate[kind].age = this.value; drawPend(); });
+      $(t[1]).addEventListener("change", function () { pstate[kind].wh = this.value; RENDER[kind](); });
+      $(t[2]).addEventListener("change", function () { pstate[kind].age = this.value; RENDER[kind](); });
     });
     [["pk-wh", "packing", "whSort"], ["pk-tbl", "packing", "sort"], ["pb-wh", "putback", "whSort"],
      ["pb-tbl", "putback", "sort"], ["rt-wh", "rto", "whSort"], ["rt-tbl", "rto", "sort"]].forEach(function (t) {
-      sortable(t[0], function () { return pstate[t[1]][t[2]]; }, drawPend);
+      sortable(t[0], function () { return pstate[t[1]][t[2]]; }, RENDER[t[1]]);
     });
 
     // complaints
@@ -832,10 +847,9 @@
     var banner = document.querySelector("#panel-warehouse-exceptions .bx-banner");
     try {
       if (!wired) { wire(); wired = true; }
-      buildControls(); draw();
-      buildTabs(); buildPendControls(); drawPend();
-      buildComplaintsControls(); renderComplaints();
-      showTab(current);
+      buildControls(); buildTabs(); buildPendControls(); buildComplaintsControls();
+      views().forEach(function (t) { stale[t.id] = true; });
+      showTab(current);  // draws just this one; the rest when opened
     } catch (err) {
       // upstream's fail(): say so on the page rather than leave half-drawn tables looking complete
       banner.textContent = "This report failed to render: " + (err && err.message ? err.message : err);
