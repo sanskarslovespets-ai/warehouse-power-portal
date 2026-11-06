@@ -50,6 +50,7 @@ TAB_GROUPS = (  # the sidebar's groups, each {data-panel id in static/index.html
     }),
     ("Warehouse Dashboards", {
         "control-tower": "Control Tower",  # control_tower.py
+        "warehouse-exceptions": "Warehouse Exceptions",  # breach_explorer.py, dataset "warehouse"
     }),
 )
 TABS = {tab: name for _group, tabs in TAB_GROUPS for tab, name in tabs.items()}
@@ -75,6 +76,7 @@ API_TABS = (
     ("/api/breach-explorer/rto", "be-rto"),
     ("/api/breach-explorer/connection", "be-connection"),  # and .../connection/awbs, its Export CSV
     ("/api/breach-explorer/radofd", "be-radofd"),
+    ("/api/breach-explorer/warehouse", "warehouse-exceptions"),  # the Warehouse Exceptions page, and its Refresh data
     ("/api/control-tower", "control-tower"),  # and .../status, and .../refresh (a write: editors only)
 )
 # Any signed-in user: who they are, and how fresh the data is (no data itself)

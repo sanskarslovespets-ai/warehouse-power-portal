@@ -80,7 +80,7 @@ def breach(tmp_path, monkeypatch):
     monkeypatch.setattr(breach_explorer, "CACHE_DIR", tmp_path / "breach_cache")
     monkeypatch.setattr(breach_explorer, "STATE_FILE", tmp_path / "breach_cache" / "state.json")
     for name, value in (("_loaded", False), ("_fetched", {}), ("_errors", {}), ("_payloads", {}), ("_queue", []),
-                        ("_running", None), ("_run_started_at", None), ("_last_attempt_at", 0.0)):
+                        ("_running", None), ("_run_started_at", None), ("_last_attempt_at", 0.0), ("_hurried", set())):
         monkeypatch.setattr(breach_explorer, name, value)
     started = []
     monkeypatch.setattr(breach_explorer, "refresh_cache_async", lambda force=False: started.append(force))

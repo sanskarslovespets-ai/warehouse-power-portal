@@ -4,8 +4,11 @@ The one file in breach_pipeline/ that is not a straight copy of edd-observabilit
 The scripts call the same three functions with the same arguments; what changed is where the
 credentials come from:
 
-    get_scm_connection()   SCM_DB_*   scm, the analytics replica (upstream: DB_*)
-    get_erp_connection()   DN_DB_*    the ERP read replica       (upstream: ERP_DB_*)
+    get_scm_connection()      SCM_DB_*      scm, the analytics replica (upstream: DB_*)
+    get_erp_connection()      DN_DB_*       the ERP read replica       (upstream: ERP_DB_*)
+    get_promise_connection()  PROMISE_DB_*  the promise engine, same names as upstream. Optional: only
+                                            export_warehouse_pendency.py asks, for the dispatch cutoff, and
+                                            without it uses 14:00 (Standard A, the same at all seven)
 
 and that passwords are sent as UTF-8 bytes, as rto_process.py does: PyMySQL sends a str password
 as latin-1, so a correct password with a non-ASCII character fails with error 1045.
@@ -75,3 +78,9 @@ def get_scm_connection(read_timeout=10):
 
 def get_erp_connection(read_timeout=10):
     return get_connection("DN_DB", read_timeout=read_timeout)
+
+
+def get_promise_connection(read_timeout=10):
+    """The promise engine's host (promiseEngine.warehouse_cutoffs). Raises KeyError when PROMISE_DB_* isn't set,
+    which export_warehouse_pendency.py treats like an unreachable host: it falls back to its 14:00 cutoff."""
+    return get_connection("PROMISE_DB", read_timeout=read_timeout)

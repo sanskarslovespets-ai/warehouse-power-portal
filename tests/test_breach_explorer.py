@@ -20,6 +20,8 @@ GOOD = {  # the smallest output of each export that the panel will serve
     "radofd": {"by_city": {"dims": {}, "facts": [[0] * 11]}, "by_hub": {"dims": {}, "facts": []}},
     "complaints": {"dims": {}, "facts": [[0] * 10]},
     "rto": {"dims": {}, "facts": [[0] * 17]},
+    "warehouse": {"notfound": {"dims": {}, "facts": [], "base": [[0, 0, 5, 0]]},
+                  "pendency": {"asOf": "2026-11-06 09:01", "packing": []}, "complaints": {"rows": []}},
 }
 ERP_DOWN = "pymysql.err.OperationalError: (2003, \"Can't connect to MySQL server on 'erp'\")"
 
@@ -175,7 +177,7 @@ def test_refreshes_asked_for_during_a_run_join_it_and_none_runs_twice(breach, mo
     monkeypatch.setattr(breach, "_export", exporting)
     breach.refresh_tab("connection", cooldown=0)
     breach.refresh_cache()
-    assert ran == ["connection", "rto", "breach", "pendency-detail", "pendency", "radofd", "complaints"]
+    assert ran == ["connection", "rto", "breach", "pendency-detail", "pendency", "radofd", "complaints", "warehouse"]
     state = breach.status()
     assert state["queued"] == [] and state["running"] is None and not breach.is_refreshing()
 
@@ -239,6 +241,144 @@ def test_each_tab_s_data_is_only_for_people_given_that_tab(main, accounts, breac
 
     assert rto_only.get("/api/breach-explorer/pendency").status_code == 403
     assert rto_only.get("/api/breach-explorer/status").status_code == 200  # freshness only, for everyone
+
+
+def test_warehouse_exceptions_is_its_own_tab_under_warehouse_dashboards(main, accounts, breach):
+    write_exports(breach)
+    breach.refresh_cache(force=True)
+    accounts.add("wx.view", "warehouse-pass", "viewer", ["warehouse-exceptions"])
+    accounts.add("wx.ed", "warehouse-pass", "editor", ["warehouse-exceptions"])
+    accounts.add("pen", "pendency-pass", "editor", ["be-pendency"])
+    viewer, editor, pen = (client(main, accounts, name) for name in ("wx.view", "wx.ed", "pen"))
+
+    assert viewer.get("/api/me").json()["panels"] == ["warehouse-exceptions"]
+    assert viewer.get("/api/breach-explorer/warehouse").json() == GOOD["warehouse"]
+    assert viewer.get("/api/breach-explorer/pendency").status_code == 403  # none of the Breach Explorer's tabs
+    r = pen.get("/api/breach-explorer/warehouse")
+    assert r.status_code == 403 and r.json() == {"error": "You don't have access to the Warehouse Exceptions tab."}
+
+    r = viewer.post("/api/breach-explorer/warehouse/refresh")
+    assert r.status_code == 403 and r.json() == {"error": "Your access to the Warehouse Exceptions tab is view-only."}
+    assert editor.post("/api/breach-explorer/warehouse/refresh").status_code == 429  # its data is seconds old
+    assert pen.post("/api/breach-explorer/warehouse/refresh").status_code == 403
+
+
+def test_a_tab_someone_is_waiting_on_is_built_next(main, accounts, breach):
+    # Just after a restart: the breach export running, every other one queued, Warehouse Exceptions last.
+    breach._running = "breach"
+    breach._queue[:] = ["pendency-detail", "pendency", "connection", "radofd", "complaints", "rto", "warehouse"]
+    admin = client(main, accounts, "tester")
+
+    assert admin.get("/api/breach-explorer/warehouse").status_code == 503
+    assert breach._queue == ["warehouse", "pendency-detail", "pendency", "connection", "radofd", "complaints", "rto"]
+
+    # someone else then opens RTO: it goes next after Warehouse Exceptions, not ahead of it...
+    assert admin.get("/api/breach-explorer/rto").status_code == 503
+    # ...however often either page asks again while it waits
+    admin.get("/api/breach-explorer/warehouse")
+    admin.get("/api/breach-explorer/rto")
+    assert breach._queue == ["warehouse", "rto", "pendency-detail", "pendency", "connection", "radofd", "complaints"]
+
+    # Pendency's shipment list moves with it; the export already running is left alone
+    admin.get("/api/breach-explorer/pendency")
+    assert breach._queue[:4] == ["warehouse", "rto", "pendency-detail", "pendency"] and breach._running == "breach"
+    admin.get("/api/breach-explorer/breach")
+    assert breach._queue[:4] == ["warehouse", "rto", "pendency-detail", "pendency"]
+
+    # once it's run, it's an ordinary export again: queued later, it waits its turn until someone waits on it
+    write_exports(breach)
+    breach._running = None
+    breach.refresh_cache()
+    assert breach._queue == [] and breach._hurried == set()
+    assert admin.get("/api/breach-explorer/warehouse").status_code == 200
+
+
+def test_a_server_shutting_down_stops_its_export_and_what_that_started(breach, tmp_path):
+    import os
+    import threading
+
+    child_pid = tmp_path / "child.pid"
+    write_exports(breach)
+    # like build_warehouse_data.py: an export that starts another, both meant to run for a minute
+    (breach.PIPELINE / "scripts" / "build_warehouse_data.py").write_text(textwrap.dedent(f"""
+        import subprocess, sys, time
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        open({str(child_pid)!r}, "w").write(str(child.pid))
+        time.sleep(60)
+    """))
+    breach._queue[:] = ["warehouse"]
+    run = threading.Thread(target=breach._run)
+    run.start()
+    deadline = time.time() + 10
+    while not (child_pid.exists() and child_pid.read_text()) and time.time() < deadline:
+        time.sleep(0.05)
+    pid = int(child_pid.read_text())
+
+    breach.stop()  # main.py's lifespan, on shutdown
+    run.join(timeout=10)
+    assert not run.is_alive()  # the run didn't wait out the minute
+    assert "stopped with exit code" in breach.status()["datasets"]["warehouse"]["error"]
+    for _ in range(100):  # ...and nothing it started is left running
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        raise AssertionError("the export's own child process is still running")
+    breach.stop()  # nothing running: nothing to do
+
+
+def test_warehouse_data_missing_a_part_is_not_served(breach):
+    good = GOOD["warehouse"]
+    write_exports(breach, warehouse={**good, "complaints": None})
+    breach.refresh_cache(force=True)
+    assert breach.status()["datasets"]["warehouse"]["error"] == "build_warehouse_data.py ran, but it has no complaints data"
+    write_exports(breach, warehouse={**good, "pendency": {"asOf": ""}})
+    breach.refresh_cache(force=True)
+    assert breach.status()["datasets"]["warehouse"]["error"] == "build_warehouse_data.py ran, but it has no pendency snapshot time"
+    assert breach.payload("warehouse") is None
+
+
+def test_the_warehouse_bundle_is_all_three_exports_or_nothing(tmp_path):
+    """build_warehouse_data.py itself (the one script in breach_pipeline/scripts that isn't upstream's), on stand-in
+    exports: it bundles their three payloads, and stops at the first that fails, leaving no bundle behind."""
+    import shutil
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    real = Path(__file__).resolve().parent.parent / "breach_pipeline" / "scripts" / "build_warehouse_data.py"
+    shutil.copy(real, scripts)
+
+    def export(script, output, payload=None, fails=None):
+        body = (f"import sys\nsys.exit({fails!r})\n" if fails else textwrap.dedent(f"""
+            import json, os
+            out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", {output!r})
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            with open(out, "w") as f:
+                json.dump({payload!r}, f)
+        """))
+        (scripts / script).write_text(body)
+
+    export("export_warehouse_notfound.py", "notfound_payload.json", {"base": [[0, 0, 5, 0]]})
+    export("export_warehouse_pendency.py", "pendency_payload.json", {"asOf": "2026-11-06 09:01"})
+    export("export_warehouse_complaints.py", "complaints_payload.json", {"rows": [[1]]})
+    run = subprocess.run([sys.executable, str(scripts / "build_warehouse_data.py")], capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr
+    bundle = json.loads((tmp_path / "data" / "warehouse_data.json").read_text())
+    assert bundle == {"notfound": {"base": [[0, 0, 5, 0]]}, "pendency": {"asOf": "2026-11-06 09:01"},
+                      "complaints": {"rows": [[1]]}}
+
+    (tmp_path / "data" / "warehouse_data.json").unlink()
+    export("export_warehouse_pendency.py", "pendency_payload.json", fails=ERP_DOWN)
+    run = subprocess.run([sys.executable, str(scripts / "build_warehouse_data.py")], capture_output=True, text=True)
+    assert run.returncode != 0
+    assert run.stderr.strip().splitlines()[-1] == f"export_warehouse_pendency.py failed: {ERP_DOWN}"
+    assert not (tmp_path / "data" / "warehouse_data.json").exists()
+    assert not (tmp_path / "data" / "pendency_payload.json").exists()  # last run's file isn't left to look new
 
 
 def test_refresh_data_is_for_the_tab_s_editors_and_not_again_within_minutes(main, accounts, breach, monkeypatch):
@@ -382,7 +522,8 @@ def test_the_top_bar_shows_and_refreshes_only_the_data_behind_your_tabs(main, ac
 
 def test_the_users_page_shows_each_tab_under_its_sidebar_group(main, accounts):
     tabs = client(main, accounts, "tester").get("/api/users").json()["tabs"]
-    assert [t["group"] for t in tabs] == ["RTO"] * 5 + ["Breach Explorer"] * 6 + ["Warehouse Dashboards"]
+    assert [t["group"] for t in tabs] == ["RTO"] * 5 + ["Breach Explorer"] * 6 + ["Warehouse Dashboards"] * 2
+    assert {"id": "warehouse-exceptions", "name": "Warehouse Exceptions", "group": "Warehouse Dashboards"} in tabs
     assert {"id": "be-rto", "name": "RTO", "group": "Breach Explorer"} in tabs
     r = client(main, accounts, "tester").post("/api/users", json={
         "username": "pendency.only", "password": "long-enough-1", "role": "viewer", "tabs": ["be-pendency", "be-rto"]})

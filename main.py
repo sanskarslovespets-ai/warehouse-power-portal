@@ -88,7 +88,8 @@ CACHE_TABS = {
     "rto_delivered": {"rto-analytics", "rto-status"},
     "rto_mdnd": {"rto-analytics", "rto-mdnd"},
     "rto_recon": {"rto-analytics", "rto-recon"},
-    "breach_explorer": {tab for tab, group in users.TAB_GROUP.items() if group == "Breach Explorer"},
+    "breach_explorer": {tab for tab, group in users.TAB_GROUP.items() if group == "Breach Explorer"}
+    | {"warehouse-exceptions"},  # built by the same runner (breach_explorer.py)
     "control_tower": {"control-tower"},
 }
 
@@ -120,6 +121,7 @@ async def lifespan(_app):
     daily_refresh.start(_daily_refresh)
     control_tower.start_schedule()  # the Control Tower is also rebuilt every 30 minutes
     yield
+    breach_explorer.stop()  # don't leave its export running on after this process (a restart starts it again)
 
 
 def _daily_refresh():
@@ -734,6 +736,7 @@ def breach_explorer_data(dataset: str, request: Request):
         raise HTTPException(404, "There is no such Breach Explorer data.")
     found = breach_explorer.payload(dataset)
     if not found:
+        breach_explorer.hurry(dataset)  # someone is looking at an empty tab: build its data next
         raise HTTPException(503, "This tab has no data yet.")
     gz, etag = found
     headers = {"ETag": etag, "Vary": "Accept-Encoding"}
