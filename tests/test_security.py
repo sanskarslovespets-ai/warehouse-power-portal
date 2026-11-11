@@ -243,6 +243,28 @@ def test_forged_edited_or_expired_sessions_are_refused(main, accounts):
     assert auth.read_session("\u00e9.\u00e9") is None and auth.read_session(None) is None
 
 
+def test_sessions_outlive_a_restart_and_work_on_every_instance(monkeypatch):
+    # The live portal had no SESSION_SECRET, so each start made up a key and refused every session from
+    # before it: people were signed out seconds into their work whenever the server restarted.
+    monkeypatch.delenv("SESSION_SECRET", raising=False)
+    monkeypatch.setenv("SCM_DB_PASSWORD", "the-db-password")
+    key = auth._session_key()
+    assert key == auth._session_key()  # the next start, or another instance: the same key
+    assert b"the-db-password" not in key and len(key) == 32
+    monkeypatch.setattr(auth, "_SECRET", key)
+    token = auth.issue("wh.user", auth.seal("wh-user-pass"))
+    monkeypatch.setattr(auth, "_SECRET", auth._session_key())  # "restarted"
+    assert auth.read_session(token) == ("wh.user", auth.seal("wh-user-pass"))
+
+    monkeypatch.setenv("SCM_DB_PASSWORD", "a-new-db-password")  # changing the password signs everyone out, once
+    assert auth._session_key() != key
+    monkeypatch.setenv("SESSION_SECRET", "a-key-of-its-own")  # a dedicated secret wins when set
+    assert auth._session_key() == b"a-key-of-its-own"
+    monkeypatch.delenv("SESSION_SECRET")
+    monkeypatch.delenv("SCM_DB_PASSWORD")  # a bare local run: a new key each start
+    assert auth._session_key() != auth._session_key()
+
+
 def test_a_session_in_use_is_renewed_once_half_of_it_is_left(app, accounts):
     def ping(hours_left):
         return TestClient(app, client=LOCAL, cookies=accounts.cookies("wh.user", hours_left)).get("/api/ping")

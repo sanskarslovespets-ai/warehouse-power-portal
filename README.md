@@ -129,10 +129,11 @@ Admins add people and set what they can open on the **Users** page (below).
   bounce. Removing someone, changing their password or their tabs reaches them
   within a minute, even while they're signed in: a new password signs out
   every session that used the old one.
-- The session is an HttpOnly cookie signed with `SESSION_SECRET`, so it can't
-  be forged or edited. Without that setting, everyone is signed out whenever
-  the server restarts or is redeployed. On Cloud Run it comes from the Secret
-  Manager secret `warehouse-portal-session-secret` (`cloudbuild.yaml`).
+- The session is an HttpOnly cookie, signed so it can't be forged or edited.
+  The key is `SESSION_SECRET` when set, otherwise one derived from
+  `SCM_DB_PASSWORD` (`auth._session_key`), so it stays the same across
+  restarts, deploys and instances and nobody is signed out by them. Only a run
+  with neither setting makes up a key at each start.
 - Every sign-in and wrong attempt is logged (`[auth] ...`), the audit log of
   writes names the warehouse user, and every change on the Users page is
   logged as `[users] ...`.
@@ -364,8 +365,10 @@ on, swap the setting back; `IAP_AUDIENCE` wins if both are set.
    `ALLOWED_EMAIL_DOMAINS=supertails.com,other.com`.
 3. Run without `--reload`:
    `python3 -m uvicorn main:app --host=0.0.0.0 --port=8080 --no-server-header`.
-4. Set `SESSION_SECRET` (the same value on every instance) so sign-ins
-   survive restarts and work whichever instance answers. Make one with
+4. Sign-ins survive restarts and work whichever instance answers as long as
+   every instance has the same `SCM_DB_PASSWORD` (the session key is derived
+   from it). For a key of its own, set `SESSION_SECRET` (the same value on
+   every instance); make one with
    `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`. Set
    `ADMIN_USERS` too, or no one can open the Users page.
 5. Give it secrets through the platform (Secret Manager → env vars), never by

@@ -41,10 +41,27 @@ PUBLIC_PATHS = {
     "/login", "/api/login", "/api/logout", "/css/style.css", "/js/login.js", "/favicon.png", "/img/supertails-logo.png",
 }
 
-# On a server, set SESSION_SECRET (the same value on every instance). Without it each start picks
-# its own, so everyone is signed out whenever the server restarts or is redeployed. Cloud Run gets it
-# from Secret Manager (cloudbuild.yaml).
-_SECRET = os.environ.get("SESSION_SECRET", "").encode() or secrets.token_bytes(32)
+def _session_key():
+    """The key sessions are signed with. It must be the same on every start and every instance: a session
+    signed with another key is refused, and its holder is sent to the sign-in page mid-work.
+
+    SESSION_SECRET when set (the cleanest: its own secret, rotated on its own). Otherwise one derived from
+    SCM_DB_PASSWORD, which every server already has and keeps across restarts (Cloud Run: Secret Manager,
+    cloudbuild.yaml). That costs nothing in safety: whoever holds that password can already read
+    warehouse_users, passwords and all. It goes through HMAC, so the key gives nothing of the password away,
+    and changing the password signs everyone out once. Only with neither (a bare local run) is the key made
+    up at each start, which signs everyone out on each restart.
+    """
+    configured = os.environ.get("SESSION_SECRET", "")
+    if configured:
+        return configured.encode()
+    db_password = os.environ.get("SCM_DB_PASSWORD", "")
+    if db_password:
+        return hmac.new(db_password.encode(), b"warehouse-portal session signing key v1", hashlib.sha256).digest()
+    return secrets.token_bytes(32)
+
+
+_SECRET = _session_key()
 
 _failures = {}  # casefolded username -> times of its recent wrong passwords
 _failures_lock = threading.Lock()
