@@ -334,10 +334,11 @@ is running at 9:00:
   those, the catch-up above still refreshes on the first visit after 9:00.
 - **One process:** run a single uvicorn worker (the default). Each worker would
   run its own 9:00 refresh against the databases.
-- **Memory:** give it 2 GiB. The Breach Explorer's breach export holds about
-  3.5 months of deliveries in memory while it runs, which is what the original
-  Breach Explorer service is sized for. It runs in a separate process, so that
-  memory is freed when the export finishes.
+- **Memory:** give it 4 GiB. At 2 GiB the live service ran out of memory every
+  few minutes: each start rebuilds every cache at once (the Control Tower's
+  build inside the server process, the Breach Explorer exports alongside it),
+  and the RTO export alone takes about 1 GB. The exports run in separate
+  processes, so their memory is freed when each finishes.
 
 ## 5. Running it on a server
 
