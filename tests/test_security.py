@@ -243,6 +243,57 @@ def test_forged_edited_or_expired_sessions_are_refused(main, accounts):
     assert auth.read_session("\u00e9.\u00e9") is None and auth.read_session(None) is None
 
 
+def test_sessions_outlive_a_restart_and_work_on_every_instance(monkeypatch):
+    # The live portal had no SESSION_SECRET, so each start made up a key and refused every session from
+    # before it: people were signed out seconds into their work whenever the server restarted.
+    monkeypatch.delenv("SESSION_SECRET", raising=False)
+    monkeypatch.setenv("SCM_DB_PASSWORD", "the-db-password")
+    key = auth._session_key()
+    assert key == auth._session_key()  # the next start, or another instance: the same key
+    assert b"the-db-password" not in key and len(key) == 32
+    monkeypatch.setattr(auth, "_SECRET", key)
+    token = auth.issue("wh.user", auth.seal("wh-user-pass"))
+    monkeypatch.setattr(auth, "_SECRET", auth._session_key())  # "restarted"
+    assert auth.read_session(token) == ("wh.user", auth.seal("wh-user-pass"))
+
+    monkeypatch.setenv("SCM_DB_PASSWORD", "a-new-db-password")  # changing the password signs everyone out, once
+    assert auth._session_key() != key
+    monkeypatch.setenv("SESSION_SECRET", "a-key-of-its-own")  # a dedicated secret wins when set
+    assert auth._session_key() == b"a-key-of-its-own"
+    monkeypatch.delenv("SESSION_SECRET")
+    monkeypatch.delenv("SCM_DB_PASSWORD")  # a bare local run: a new key each start
+    assert auth._session_key() != auth._session_key()
+
+
+def test_a_session_in_use_is_renewed_once_half_of_it_is_left(app, accounts):
+    def ping(hours_left):
+        return TestClient(app, client=LOCAL, cookies=accounts.cookies("wh.user", hours_left)).get("/api/ping")
+
+    assert "set-cookie" not in ping(auth.SESSION_HOURS - 1).headers  # signed in an hour ago: nothing to do
+    r = ping(2)  # signed in 10 hours ago, still using the panel
+    assert r.status_code == 200
+    cookie = r.headers["set-cookie"].lower()
+    assert "httponly" in cookie and "samesite=lax" in cookie and "max-age=43200" in cookie and "secure" not in cookie
+    claims = auth._claims(r.cookies[auth.COOKIE])
+    assert claims["u"] == "wh.user" and claims["exp"] >= time.time() + auth.SESSION_HOURS * 3600 - 60
+    assert ping(-1).status_code == 401  # an expired session is not brought back
+
+
+def test_a_renewed_cookie_is_https_only_on_a_server(app, accounts, monkeypatch):
+    monkeypatch.setattr(security, "ALLOW_WITHOUT_IAP", True)
+    r = TestClient(app, client=REMOTE, cookies=accounts.cookies("wh.user", 2)).get("/api/ping")
+    assert r.status_code == 200 and "secure" in r.headers["set-cookie"].lower()
+
+
+def test_a_page_opened_after_the_session_ended_says_so(main, accounts):
+    c = TestClient(main.app, client=LOCAL, cookies=accounts.cookies("tester", -1), follow_redirects=False)
+    assert c.get("/").headers["location"] == "/login?expired=1"
+    assert c.get("/api/me").status_code == 401  # session.js takes the page to /login?expired=1
+    assert c.get("/login?expired=1").status_code == 200
+    fresh = TestClient(main.app, client=LOCAL, follow_redirects=False)  # never signed in: just the form
+    assert fresh.get("/").headers["location"] == "/login"
+
+
 def test_right_username_and_password_open_the_panel(main, sanskar, capsys):
     c = TestClient(main.app, client=LOCAL, follow_redirects=False)
     r = sign_in(c)

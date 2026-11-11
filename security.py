@@ -34,7 +34,7 @@ from google.auth import jwt as google_jwt
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.requests import HTTPConnection
-from starlette.responses import JSONResponse, RedirectResponse
+from starlette.responses import JSONResponse, RedirectResponse, Response
 
 import auth
 import users
@@ -143,11 +143,32 @@ def cross_site_problem(method, headers):
     return None  # not sent by a browser (curl, a script): there is no signed-in session to ride on
 
 
-def _sign_in_first(scope):
-    """No session: opening a page goes to the sign-in page; an /api/ call (or a write) gets a 401."""
+def _sign_in_first(scope, had_session):
+    """No session: opening a page goes to the sign-in page; an /api/ call (or a write) gets a 401.
+
+    A page opened with a session that is no longer good (expired, or from before a password change) goes
+    to /login?expired=1, where the page says they were signed out instead of just showing the form.
+    """
     if scope["method"] in ("GET", "HEAD") and not scope["path"].startswith("/api/"):
-        return RedirectResponse("/login", status_code=303)
+        return RedirectResponse("/login?expired=1" if had_session else "/login", status_code=303)
     return JSONResponse({"error": "Please sign in."}, status_code=401)
+
+
+def _with_cookie(send, token, secure):
+    """`send`, adding a renewed session cookie (auth.renewal) to the response, unless the app set the session
+    cookie itself: a password change issues a new one, which must not be overwritten by the old seal's."""
+    holder = Response()
+    auth.set_cookie(holder, token, secure)
+    cookie = holder.headers["set-cookie"]
+
+    async def send_with_cookie(message):
+        if message["type"] == "http.response.start":
+            out = MutableHeaders(scope=message)
+            if not any(value.startswith(f"{auth.COOKIE}=") for value in out.getlist("set-cookie")):
+                out.append("set-cookie", cookie)
+        await send(message)
+
+    return send_with_cookie
 
 
 class Guard:
@@ -178,19 +199,23 @@ class Guard:
             return await JSONResponse({"error": str(e)}, status_code=e.status)(scope, receive, send)
 
         if scope["path"] not in auth.PUBLIC_PATHS:
+            token = HTTPConnection(scope).cookies.get(auth.COOKIE)
             try:
-                access = await run_in_threadpool(users.for_session, HTTPConnection(scope).cookies.get(auth.COOKIE))
+                access = await run_in_threadpool(users.for_session, token)
             except Exception:
                 traceback.print_exc()
                 return await JSONResponse(
                     {"error": "Could not check your access right now. Please try again."}, status_code=503
                 )(scope, receive, send)
             if not access:
-                return await _sign_in_first(scope)(scope, receive, send)
+                return await _sign_in_first(scope, had_session=bool(token))(scope, receive, send)
             denied = users.denial(access, scope["method"], scope["path"])
             if denied:
                 return await JSONResponse({"error": denied}, status_code=403)(scope, receive, send)
             user = f"{user} as {access.username}"
+            fresh = auth.renewal(token)
+            if fresh:
+                send = _with_cookie(send, fresh, secure=on_server() or scope.get("scheme") == "https")
 
         if scope["method"] in SAFE_METHODS:
             return await self.app(scope, receive, send)

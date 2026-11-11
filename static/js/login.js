@@ -12,8 +12,16 @@
   const btnLabel = document.getElementById("btn-login-label");
   const toggle = document.getElementById("btn-toggle-password");
   const caps = document.getElementById("login-caps");
+  const notice = document.getElementById("login-notice");
+
+  // Sent here because a session ended (session.js, security.Guard): say so, rather than a silent bounce.
+  if (new URLSearchParams(location.search).has("expired")) {
+    notice.textContent = "You were signed out. Please sign in again to carry on.";
+    notice.hidden = false;
+  }
 
   function showError(message) {
+    notice.hidden = true;
     error.textContent = message;
     error.classList.add("hidden");
     void error.offsetWidth; // restart the shake, so a second wrong try is noticed too

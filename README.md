@@ -122,13 +122,18 @@ Admins add people and set what they can open on the **Users** page (below).
   password."), so the page doesn't reveal which usernames exist.
 - 5 wrong passwords for one username within 15 minutes lock that username for
   15 minutes.
-- A sign-in lasts 12 hours (`SESSION_HOURS` in `auth.py`), or until **Sign
-  out** in the top bar. Removing someone, changing their password or their
-  tabs reaches them within a minute, even while they're signed in: a new
-  password signs out every session that used the old one.
-- The session is an HttpOnly cookie signed with `SESSION_SECRET`, so it can't
-  be forged or edited. Without that setting, everyone is signed out whenever
-  the server restarts.
+- A sign-in lasts 12 hours (`SESSION_HOURS` in `auth.py`) and renews itself
+  while the panel is in use, so a session nobody uses ends 6 to 12 hours after
+  its last request; or until **Sign out** in the top bar. Someone signed out
+  this way lands on the sign-in page with "You were signed out", not a silent
+  bounce. Removing someone, changing their password or their tabs reaches them
+  within a minute, even while they're signed in: a new password signs out
+  every session that used the old one.
+- The session is an HttpOnly cookie, signed so it can't be forged or edited.
+  The key is `SESSION_SECRET` when set, otherwise one derived from
+  `SCM_DB_PASSWORD` (`auth._session_key`), so it stays the same across
+  restarts, deploys and instances and nobody is signed out by them. Only a run
+  with neither setting makes up a key at each start.
 - Every sign-in and wrong attempt is logged (`[auth] ...`), the audit log of
   writes names the warehouse user, and every change on the Users page is
   logged as `[users] ...`.
@@ -329,10 +334,11 @@ is running at 9:00:
   those, the catch-up above still refreshes on the first visit after 9:00.
 - **One process:** run a single uvicorn worker (the default). Each worker would
   run its own 9:00 refresh against the databases.
-- **Memory:** give it 2 GiB. The Breach Explorer's breach export holds about
-  3.5 months of deliveries in memory while it runs, which is what the original
-  Breach Explorer service is sized for. It runs in a separate process, so that
-  memory is freed when the export finishes.
+- **Memory:** give it 4 GiB. At 2 GiB the live service ran out of memory every
+  few minutes: each start rebuilds every cache at once (the Control Tower's
+  build inside the server process, the Breach Explorer exports alongside it),
+  and the RTO export alone takes about 1 GB. The exports run in separate
+  processes, so their memory is freed when each finishes.
 
 ## 5. Running it on a server
 
@@ -360,8 +366,10 @@ on, swap the setting back; `IAP_AUDIENCE` wins if both are set.
    `ALLOWED_EMAIL_DOMAINS=supertails.com,other.com`.
 3. Run without `--reload`:
    `python3 -m uvicorn main:app --host=0.0.0.0 --port=8080 --no-server-header`.
-4. Set `SESSION_SECRET` (the same value on every instance) so sign-ins
-   survive restarts and work whichever instance answers. Make one with
+4. Sign-ins survive restarts and work whichever instance answers as long as
+   every instance has the same `SCM_DB_PASSWORD` (the session key is derived
+   from it). For a key of its own, set `SESSION_SECRET` (the same value on
+   every instance); make one with
    `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`. Set
    `ADMIN_USERS` too, or no one can open the Users page.
 5. Give it secrets through the platform (Secret Manager → env vars), never by

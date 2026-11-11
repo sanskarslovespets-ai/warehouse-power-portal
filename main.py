@@ -273,9 +273,8 @@ def _access(request):
 
 
 def _start_session(request, response, username, password):
-    response.set_cookie(
-        auth.COOKIE, auth.issue(username, auth.seal(password)), max_age=auth.SESSION_HOURS * 3600, httponly=True,
-        samesite="lax", secure=security.on_server() or request.url.scheme == "https",  # a local run is plain http
+    auth.set_cookie(
+        response, auth.issue(username, auth.seal(password)), secure=security.on_server() or request.url.scheme == "https"
     )
 
 

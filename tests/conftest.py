@@ -2,6 +2,7 @@
 test reaches MySQL, with two admins ("tester" and "wh.user") for tests that only need to be signed in;
 and the Breach Explorer and the Control Tower kept in temporary folders, never reaching a database in the
 background."""
+import json
 import os
 import sys
 import time
@@ -33,9 +34,15 @@ class FakeAccounts:
     def add(self, username, password, role=None, tabs=()):
         self.rows[username] = [password, role, ",".join(tabs), None, None]
 
-    def cookies(self, username):
-        """The session cookie of `username`, as after signing in with their current password."""
-        return {auth.COOKIE: auth.issue(username, auth.seal(self.rows[username][0]))}
+    def cookies(self, username, hours_left=None):
+        """The session cookie of `username`, as after signing in with their current password; with `hours_left`,
+        one that runs out that many hours from now, as if they signed in a while ago."""
+        token = auth.issue(username, auth.seal(self.rows[username][0]))
+        if hours_left is not None:
+            claims = {**auth._claims(token), "exp": int(time.time() + hours_left * 3600)}
+            payload = auth._b64(json.dumps(claims).encode())
+            token = f"{payload}.{auth._signature(payload)}"
+        return {auth.COOKIE: token}
 
     # what users.py and auth.py ask the database
     def _rows(self, username=None):

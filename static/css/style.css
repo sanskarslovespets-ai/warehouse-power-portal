@@ -600,6 +600,19 @@ a.link:hover { text-decoration: underline; }
 }
 .form-error.hidden { display: none; }
 
+/* The sign-in page's "You were signed out" (login.js) */
+.form-notice {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border: 1px solid #f3d18f;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+.form-notice[hidden] { display: none; }
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;

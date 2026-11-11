@@ -3,7 +3,10 @@
 IAP (security.py) decides which Google accounts can reach the panel at all; this decides which
 of them may use it. The right username and password get a session cookie good for SESSION_HOURS,
 and security.Guard turns away every request without one except the sign-in page itself
-(PUBLIC_PATHS): a page load is sent to /login, an /api/ call gets a 401.
+(PUBLIC_PATHS): a page load is sent to /login, an /api/ call gets a 401. Once less than half of a
+session is left, the Guard hands its holder a fresh one (renewal), so someone using the panel is
+not signed out in the middle of their work; a session nobody uses ends 6 to 12 hours after its
+last request.
 
 The cookie is the username, a seal of their password and an expiry, signed with SESSION_SECRET, so
 it can't be forged or edited, and every instance sharing that secret accepts it. It is HttpOnly
@@ -38,9 +41,27 @@ PUBLIC_PATHS = {
     "/login", "/api/login", "/api/logout", "/css/style.css", "/js/login.js", "/favicon.png", "/img/supertails-logo.png",
 }
 
-# On a server, set SESSION_SECRET (the same value on every instance). Without it each start picks
-# its own, so everyone is signed out whenever the server restarts.
-_SECRET = os.environ.get("SESSION_SECRET", "").encode() or secrets.token_bytes(32)
+def _session_key():
+    """The key sessions are signed with. It must be the same on every start and every instance: a session
+    signed with another key is refused, and its holder is sent to the sign-in page mid-work.
+
+    SESSION_SECRET when set (the cleanest: its own secret, rotated on its own). Otherwise one derived from
+    SCM_DB_PASSWORD, which every server already has and keeps across restarts (Cloud Run: Secret Manager,
+    cloudbuild.yaml). That costs nothing in safety: whoever holds that password can already read
+    warehouse_users, passwords and all. It goes through HMAC, so the key gives nothing of the password away,
+    and changing the password signs everyone out once. Only with neither (a bare local run) is the key made
+    up at each start, which signs everyone out on each restart.
+    """
+    configured = os.environ.get("SESSION_SECRET", "")
+    if configured:
+        return configured.encode()
+    db_password = os.environ.get("SCM_DB_PASSWORD", "")
+    if db_password:
+        return hmac.new(db_password.encode(), b"warehouse-portal session signing key v1", hashlib.sha256).digest()
+    return secrets.token_bytes(32)
+
+
+_SECRET = _session_key()
 
 _failures = {}  # casefolded username -> times of its recent wrong passwords
 _failures_lock = threading.Lock()
@@ -66,15 +87,35 @@ def issue(username, password_seal):
     return f"{payload}.{_signature(payload)}"
 
 
-def read_session(token):
-    """(username, password seal) from a session token, or None if it is missing, forged, edited or expired."""
+def _claims(token):
+    """A session token's claims, or None if it is missing, forged, edited or expired."""
     payload, _, signature = (token or "").partition(".")
     if not signature or not hmac.compare_digest(signature.encode(), _signature(payload).encode()):
         return None
     claims = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
     if claims["exp"] <= time.time() or "p" not in claims:  # "p": sessions from before seals existed
         return None
-    return claims["u"], claims["p"]
+    return claims
+
+
+def read_session(token):
+    """(username, password seal) from a session token, or None if it is missing, forged, edited or expired."""
+    claims = _claims(token)
+    return (claims["u"], claims["p"]) if claims else None
+
+
+def renewal(token):
+    """A fresh token for the same user and password seal once less than half of `token`'s time is left,
+    else None. security.Guard asks only after users.for_session has accepted the token."""
+    claims = _claims(token)
+    if not claims or claims["exp"] - time.time() > SESSION_HOURS * 3600 / 2:
+        return None
+    return issue(claims["u"], claims["p"])
+
+
+def set_cookie(response, token, secure):
+    """Gives the browser `token` as its session cookie. `secure` (HTTPS only) on a server; a local run is plain http."""
+    response.set_cookie(COOKIE, token, max_age=SESSION_HOURS * 3600, httponly=True, samesite="lax", secure=secure)
 
 
 def _accounts_named(username):

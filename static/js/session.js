@@ -4,8 +4,9 @@
   // Who is signed in and what they may open (/api/me, see users.py): their name and Sign out in the
   // top bar, and only their tabs in the sidebar. Loaded before the other scripts so that:
   // - window.PortalAccess.ready is there for them to wait on before loading a tab's data;
-  // - once the session runs out (auth.SESSION_HOURS) or their access is taken away, the next /api/
-  //   call's 401 takes the page back to the sign-in page instead of every panel showing an error.
+  // - once the session ends (unused for auth.SESSION_HOURS, a password change) or their access is taken
+  //   away, the next /api/ call's 401 takes the page back to the sign-in page, which says they were
+  //   signed out (?expired=1), instead of every panel showing an error.
   // The server checks every request itself; this only makes the page fit the person using it.
 
   const ROLE_NAMES = { admin: "Admin", editor: "Editor", viewer: "Viewer" };
@@ -13,7 +14,7 @@
   const nativeFetch = window.fetch.bind(window);
   window.fetch = async function (...args) {
     const res = await nativeFetch(...args);
-    if (res.status === 401) location.replace("/login");
+    if (res.status === 401) location.replace("/login?expired=1");
     return res;
   };
 
