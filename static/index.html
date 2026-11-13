@@ -753,6 +753,7 @@
               <div class="ms" id="bx-ct-ms-bucket"></div>
               <div class="ms" id="bx-ct-ms-facility"></div>
               <div class="ms" id="bx-ct-ms-courier"></div>
+              <div class="ms" id="bx-ct-ms-channel"></div>
               <div class="spacer"></div>
               <button class="linkbtn" type="button" id="bx-ct-reset">Reset all</button>
             </div>
@@ -774,7 +775,7 @@
           </section>
 
           <section class="panel">
-            <div class="phead"><h3>By order date</h3><span class="pnote">all facilities and couriers, whatever the filters above</span></div>
+            <div class="phead"><h3>By order date</h3><span class="pnote">all facilities, couriers and channels, whatever the filters above</span></div>
             <div class="tablebox"><table id="bx-t-ct-orderdate"></table></div>
           </section>
 
@@ -787,6 +788,7 @@
             <strong>Hyperlocal</strong> = pickup pending with a hyperlocal (HLD) partner.
             <strong>Status</strong> is the courier's status group once it has the parcel, else the DN status: Completed, AWB Registered and To Bill show as Packed; Picked as Item Picked.
             Facility type comes from the warehouse code: MWH = WH, DKS and PWH = DS, DPS = Dropship. <strong>Unfulfilled WH</strong> holds order items with no stock location, so it is in "Other".
+            <strong>Channel</strong> is the DN's channel in the ERP (custom_channel): Shopify, Shopify Dropship, or IWT for internal warehouse transfers.
           </footer>
         </div>
 
@@ -797,6 +799,7 @@
               <div class="ms" id="bx-ct-ms-p-wh"></div>
               <div class="ms" id="bx-ct-ms-p-status"></div>
               <div class="ms" id="bx-ct-ms-p-courier"></div>
+              <div class="ms" id="bx-ct-ms-p-channel"></div>
               <input type="search" id="bx-ct-p-q" class="ct-search" placeholder="Order, DN or pick list" aria-label="Search by order, DN or pick list">
               <label class="ct-check"><input type="checkbox" id="bx-ct-p-later"> Show not yet due</label>
               <div class="spacer"></div>

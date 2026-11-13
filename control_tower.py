@@ -27,7 +27,9 @@ What each delivery note gets: the sheet's ERP Dump columns AC-AK, with its Facts
 - courier: the assigned partner's name (COURIER_NAMES, "SELF" if unknown), else the recommended partner's
   name before its "|", else "No Courier" (AI);
 - facility bucket: from the warehouse code's prefix (BUCKETS), not from a list, so a new darkstore is
-  counted the day it opens (AK).
+  counted the day it opens (AK);
+- channel: the delivery note's custom_channel in the ERP (Shopify, Shopify Dropship, IWT for internal
+  warehouse transfers), for the page's Channel filter. Not in the sheet.
 
 The page (static/js/control_tower.js) gets one JSON: the DNs grouped by those fields (the Dashboard tab
 pivots them in the browser) and the Warehouse Pendency rows. It is rebuilt every FRESH_FOR_SECONDS on a
@@ -81,7 +83,8 @@ ERP_QUERIES = {
         FROM `tabSales Order Item`
         WHERE {WINDOW}""",
     "dnh": f"""SELECT name AS delivery_note, status, custom_estimated_delivery_date,
-               custom_recommended_delivery_partner, custom_assigned_delivery_partner, custom_awb_number
+               custom_recommended_delivery_partner, custom_assigned_delivery_partner, custom_awb_number,
+               custom_channel
         FROM `tabDelivery Note`
         WHERE {WINDOW}""",
     "dni": f"""SELECT parent AS delivery_note, creation AS dn_creation, item_code, qty AS delivery_qty,
@@ -239,10 +242,15 @@ BUCKET_EXCEPTIONS = {"MWH_Mars_GW_001": "Dropship", "DPS_Groom_My_Pet_DL_001": "
 # left out Cancel, Hold and Draft; this is the same list, minus statuses the sheet had no name for.)
 PENDENCY_STATUSES = ("To Be Picked", "Under Picking", "Item Picked", "Packed")
 PENDENCY_COLUMNS = ["sales_order", "delivery_note", "warehouse", "pick_number", "ideal_pickup_date",
-                    "order_date", "courier", "status"]
+                    "order_date", "courier", "status", "channel"]
+NO_CHANNEL = "(no channel)"  # a DN whose custom_channel is empty
 
 # fact flags (the Dashboard tab reads them by bit)
 HAS_AWB, HAS_EDD = 1, 2
+
+# The page's data layout. A cache left on disk by a build with another layout is dropped at start-up and rebuilt,
+# rather than served to a page that would misread it. 2: facts and pendency rows got the channel.
+SCHEMA = 2
 
 # ------------------------------------------------------------------ the derived columns
 
@@ -338,6 +346,7 @@ def _join(soi, soh, dni, dnh, pli):
                     "recommended_partner": dh[3] if dh else None,
                     "assigned_partner": dh[4] if dh else None,
                     "awb": awb,
+                    "channel": dh[6] if dh else None,
                     "pick_number": p[0] if p else None,
                 })
     return [row for _rank, row in best.values() if row["item_code"] != FEE_ITEM]
@@ -473,7 +482,7 @@ def build(erp_rows, cp_rows, edd_rows, now=None, edd_problem=None):
         if r.get("orderName") and where:
             promises.setdefault((r["orderName"], where), r)
 
-    dims = _Dims("facility", "bucket", "date", "dn_status", "status", "courier")
+    dims = _Dims("facility", "bucket", "date", "dn_status", "status", "courier", "channel")
     facts = defaultdict(int)
     dns_seen = set()
     pendency = {}
@@ -491,10 +500,11 @@ def build(erp_rows, cp_rows, edd_rows, now=None, edd_problem=None):
         facility = row["dn_warehouse"] or "(no warehouse)"
         where = bucket(row["dn_warehouse"])
         who = courier(row["assigned_partner"], row["recommended_partner"])
+        channel = (row.get("channel") or "").strip() or NO_CHANNEL
 
         if not awb and where == "WH" and shown in PENDENCY_STATUSES:
             line = (row["sales_order"], dn, facility, row["pick_number"] or "", ideal.isoformat(),
-                    order_time.date().isoformat(), who, shown)
+                    order_time.date().isoformat(), who, shown, channel)
             pendency[line] = None
         if dn in dns_seen:
             continue  # the dashboard counts DNs: one more sales order on the same DN changes nothing
@@ -502,15 +512,16 @@ def build(erp_rows, cp_rows, edd_rows, now=None, edd_problem=None):
         flags = (HAS_AWB if awb else 0) | (HAS_EDD if promise and _dt(promise.get("deliveryDateTime")) else 0)
         facts[(dims("facility", facility), dims("bucket", where), dims("date", ideal.isoformat()),
                dims("date", order_time.date().isoformat()), dims("dn_status", row["dn_status"] or ""),
-               dims("status", shown), dims("courier", who), flags)] += 1
+               dims("status", shown), dims("courier", who), dims("channel", channel), flags)] += 1
 
     return {
+        "schema": SCHEMA,
         "generated_at": now.timestamp(),
         "generated_at_ist": now.strftime("%Y-%m-%d %H:%M"),
         "today": now.date().isoformat(),
         "window_days": ERP_DAYS,
         "dims": dims.values,
-        # facility, bucket, ideal pickup date, order date, DN status, status, courier, flags, DNs
+        # facility, bucket, ideal pickup date, order date, DN status, status, courier, channel, flags, DNs
         "facts": [list(key) + [n] for key, n in facts.items()],
         "pendency": {"columns": PENDENCY_COLUMNS, "rows": sorted(pendency, key=lambda r: (r[4], r[2], r[1]))},
         "counts": {"erp_rows": len(erp_rows), "cp_rows": len(cp_rows),
@@ -544,9 +555,13 @@ def _ensure_loaded():
         try:
             with open(CACHE_FILE, "rb") as fh:
                 gz = fh.read()
-            fetched = json.loads(gzip.decompress(gz))["generated_at"]
+            cached = json.loads(gzip.decompress(gz))
+            fetched = cached["generated_at"]
         except (OSError, ValueError, KeyError, TypeError, EOFError):
             return  # no cache yet, or a broken one: the next build replaces it
+        if cached.get("schema") != SCHEMA:
+            print("[control-tower] the cache on disk has an older layout: rebuilding", flush=True)
+            return
         _payload, _fetched_at = (gz, _etag(fetched)), fetched
 
 
