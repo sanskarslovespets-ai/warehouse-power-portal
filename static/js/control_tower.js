@@ -19,11 +19,11 @@
   const refreshLabel = refreshBtn.querySelector(".bx-refresh-label");
 
   // fact layout (control_tower.build): facility, bucket, ideal pickup date, order date, DN status, status,
-  // courier, flags, DNs
-  const C = { fac: 0, bucket: 1, ideal: 2, order: 3, dn: 4, status: 5, courier: 6, flags: 7, n: 8 };
+  // courier, channel, flags, DNs
+  const C = { fac: 0, bucket: 1, ideal: 2, order: 3, dn: 4, status: 5, courier: 6, channel: 7, flags: 8, n: 9 };
   const HAS_AWB = 1, HAS_EDD = 2;
   // pendency row layout: control_tower.PENDENCY_COLUMNS
-  const P = { so: 0, dn: 1, wh: 2, pick: 3, ideal: 4, order: 5, courier: 6, status: 7 };
+  const P = { so: 0, dn: 1, wh: 2, pick: 3, ideal: 4, order: 5, courier: 6, status: 7, channel: 8 };
 
   const DEFAULT_BUCKETS = ["WH", "DS"]; // the sheet's dashboard listed warehouses and darkstores
   const DEFAULT_STATUS = "To Be Picked"; // the sheet's status-level block opened on this
@@ -103,11 +103,12 @@
 
   // ---------- Dashboard ----------
   function facts() {
-    const b = MS.bucket.sel, fa = MS.facility.sel, co = MS.courier.sel;
+    const b = MS.bucket.sel, fa = MS.facility.sel, co = MS.courier.sel, ch = MS.channel.sel;
     return F.filter((f) =>
       (!b.size || b.has(D.bucket[f[C.bucket]])) &&
       (!fa.size || fa.has(D.facility[f[C.fac]])) &&
-      (!co.size || co.has(D.courier[f[C.courier]])));
+      (!co.size || co.has(D.courier[f[C.courier]])) &&
+      (!ch.size || ch.has(D.channel[f[C.channel]])));
   }
 
   // The DAYS dates up to today, oldest first.
@@ -224,9 +225,10 @@
   function pendencyRows(filtered) {
     if (!filtered) return ROWS;
     const q = el("ct-p-q").value.trim().toLowerCase();
-    const w = MS.pwh.sel, s = MS.pstatus.sel, c = MS.pcourier.sel;
+    const w = MS.pwh.sel, s = MS.pstatus.sel, c = MS.pcourier.sel, ch = MS.pchannel.sel;
     return ROWS.filter((r) =>
       (!w.size || w.has(r[P.wh])) && (!s.size || s.has(r[P.status])) && (!c.size || c.has(r[P.courier])) &&
+      (!ch.size || ch.has(r[P.channel])) &&
       (!q || r[P.so].toLowerCase().includes(q) || r[P.dn].toLowerCase().includes(q) || r[P.pick].toLowerCase().includes(q)));
   }
 
@@ -287,11 +289,12 @@
     const dcols = [
       { label: "Sales order" }, { label: "DN", cls: "ct-left" }, { label: "Warehouse", cls: "ct-left" },
       { label: "Pick list", cls: "ct-left" }, { label: "Ideal pickup", render: dateCell }, { label: "Order date", render: dateCell },
-      { label: "Courier", cls: "ct-left" }, { label: "Status", cls: "ct-left" }, { label: "Days late", num: true, render: lateCell },
+      { label: "Courier", cls: "ct-left" }, { label: "Status", cls: "ct-left" }, { label: "Channel", cls: "ct-left" },
+      { label: "Days late", num: true, render: lateCell },
     ];
     const drows = rs.map((r) => [r[P.so], r[P.dn], r[P.wh], r[P.pick], r[P.ideal], r[P.order], r[P.courier], r[P.status],
-      daysBetween(r[P.ideal], today)]);
-    const n = table("t-ct-p-rows", dcols, drows, null, { sort: { col: 8, dir: -1 }, limit: ROW_LIMIT, empty: "No pending DNs match." });
+      r[P.channel], daysBetween(r[P.ideal], today)]);
+    const n = table("t-ct-p-rows", dcols, drows, null, { sort: { col: 9, dir: -1 }, limit: ROW_LIMIT, empty: "No pending DNs match." });
     el("ct-p-shown").textContent = n > ROW_LIMIT
       ? "first " + fmt(ROW_LIMIT) + " of " + fmt(n) + " rows · Export CSV has them all"
       : fmt(n) + " rows";
@@ -339,13 +342,14 @@
     MS.facility.setValues(facilitiesFor(MS.bucket.sel));
     MS.facility.clear();
     MS.courier.clear();
+    MS.channel.clear();
     render();
   });
   el("ct-p-q").addEventListener("input", render);
   el("ct-p-later").addEventListener("change", render);
   el("ct-p-csv").addEventListener("click", pendencyCsv);
   el("ct-p-reset").addEventListener("click", () => {
-    ["pwh", "pstatus", "pcourier"].forEach((k) => MS[k].clear());
+    ["pwh", "pstatus", "pcourier", "pchannel"].forEach((k) => MS[k].clear());
     el("ct-p-q").value = "";
     el("ct-p-later").checked = false;
     render();
@@ -377,9 +381,11 @@
     if (first) MS.bucket.set(DEFAULT_BUCKETS.filter((b) => D.bucket.indexOf(b) !== -1));
     make("ct-ms-facility", "facility", "Facility", facilitiesFor(MS.bucket.sel));
     make("ct-ms-courier", "courier", "Courier", uniq(D.courier));
+    make("ct-ms-channel", "channel", "Channel", uniq(D.channel));
     make("ct-ms-p-wh", "pwh", "Warehouse", uniq(ROWS.map((r) => r[P.wh])));
     make("ct-ms-p-status", "pstatus", "Status", PENDENCY_STATUSES.filter((s) => ROWS.some((r) => r[P.status] === s)));
     make("ct-ms-p-courier", "pcourier", "Courier", uniq(ROWS.map((r) => r[P.courier])));
+    make("ct-ms-p-channel", "pchannel", "Channel", uniq(ROWS.map((r) => r[P.channel])));
 
     const keep = statusSelect.value || DEFAULT_STATUS;
     const statuses = uniq(D.status.filter(Boolean));

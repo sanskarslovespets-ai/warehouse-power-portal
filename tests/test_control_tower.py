@@ -24,8 +24,9 @@ def so_item(so, item, created=T):
     return (so, None, created, item, 1, 100.0, "WH-BIN")
 
 
-def dn_head(dn, status="To Be Picked", awb=None, recommended="Bluedart | Bluedart_DPBLR", assigned=None):
-    return (dn, status, None, recommended, assigned, awb)
+def dn_head(dn, status="To Be Picked", awb=None, recommended="Bluedart | Bluedart_DPBLR", assigned=None,
+            channel="Shopify"):
+    return (dn, status, None, recommended, assigned, awb, channel)
 
 
 def dn_item(dn, so, item, warehouse="MWH_Blr_Neelmangla_002"):
@@ -230,10 +231,11 @@ def test_status_is_the_courier_s_once_it_has_the_parcel_else_the_dn_s():
 
 
 def erp_row(dn, so="SO1", warehouse="MWH_Blr_Neelmangla_002", dn_status="To Be Picked", awb=None,
-            order_time=T, pick="PICK-1", recommended="Bluedart | Bluedart_DPBLR"):
+            order_time=T, pick="PICK-1", recommended="Bluedart | Bluedart_DPBLR", channel="Shopify"):
     return {"sales_order": so, "so_creation": order_time, "item_code": "A", "shopify_order_date": order_time,
             "delivery_note": dn, "dn_warehouse": warehouse, "dn_status": dn_status,
-            "recommended_partner": recommended, "assigned_partner": None, "awb": awb, "pick_number": pick}
+            "recommended_partner": recommended, "assigned_partner": None, "awb": awb, "channel": channel,
+            "pick_number": pick}
 
 
 def cp_row(awb, status="InTransit", order="SO1"):
@@ -247,12 +249,12 @@ def edd_row(order, warehouse="MWH_Blr_Neelmangla_002", cutoff=0, edd=datetime(20
 
 def decode(data):
     """The facts as dicts, with the dims' values in place of their indexes."""
-    names = ["facility", "bucket", "date", "date", "dn_status", "status", "courier"]
-    keys = ["facility", "bucket", "ideal", "order", "dn_status", "status", "courier"]
+    names = ["facility", "bucket", "date", "date", "dn_status", "status", "courier", "channel"]
+    keys = ["facility", "bucket", "ideal", "order", "dn_status", "status", "courier", "channel"]
     out = []
     for f in data["facts"]:
         row = {k: data["dims"][n][f[i]] for i, (k, n) in enumerate(zip(keys, names))}
-        row.update(flags=f[7], n=f[8])
+        row.update(flags=f[8], n=f[9])
         out.append(row)
     return out
 
@@ -325,6 +327,17 @@ def test_the_dashboard_counts_each_dn_once_with_its_flags():
     assert by_status["Delivered"]["bucket"] == "WH" and by_status["Delivered"]["courier"] == "Bluedart"
 
 
+def test_each_dn_carries_its_erp_channel_for_the_channel_filter():
+    joined = ct._join(soi=[so_item("SO1", "A")], soh=[so_head("SO1")], dni=[dn_item("DN1", "SO1", "A")],
+                      dnh=[dn_head("DN1", channel="Shopify Dropship")], pli=[])
+    assert joined[0]["channel"] == "Shopify Dropship"
+    erp = [erp_row("DN1", so="SO1"), erp_row("DN2", so="SO2", channel="IWT"), erp_row("DN3", so="SO3", channel=None)]
+    data = ct.build(erp, [], [], now=NOW)
+    assert {f["channel"] for f in decode(data)} == {"Shopify", "IWT", ct.NO_CHANNEL}
+    rows = {r[1]: dict(zip(data["pendency"]["columns"], r)) for r in data["pendency"]["rows"]}
+    assert rows["DN2"]["channel"] == "IWT" and rows["DN3"]["channel"] == ct.NO_CHANNEL
+
+
 # ------------------------------------------------------------------ building and serving it
 
 
@@ -351,6 +364,13 @@ def test_a_build_is_served_and_a_restart_keeps_it(tower, monkeypatch):
     assert data["counts"]["dns"] == 1 and tower.snapshot()["error"] is None
     tower._loaded, tower._payload, tower._fetched_at = False, None, None  # what a restart leaves
     assert served(tower)["generated_at"] == data["generated_at"]
+
+
+def test_a_cache_with_an_older_layout_is_rebuilt_not_served_after_a_restart(tower):
+    old = {"generated_at": time.time(), "dims": {}, "facts": [], "pendency": {"columns": [], "rows": []}}
+    with open(tower.CACHE_FILE, "wb") as fh:
+        fh.write(gzip.compress(json.dumps(old).encode()))  # no "schema": built before the channel was added
+    assert tower.payload() is None and tower.started  # a page would misread it: a build starts instead
 
 
 def test_a_failed_build_keeps_the_previous_data_and_says_why(tower, monkeypatch):
