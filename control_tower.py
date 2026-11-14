@@ -242,7 +242,7 @@ BUCKET_EXCEPTIONS = {"MWH_Mars_GW_001": "Dropship", "DPS_Groom_My_Pet_DL_001": "
 # left out Cancel, Hold and Draft; this is the same list, minus statuses the sheet had no name for.)
 PENDENCY_STATUSES = ("To Be Picked", "Under Picking", "Item Picked", "Packed")
 PENDENCY_COLUMNS = ["sales_order", "delivery_note", "warehouse", "pick_number", "ideal_pickup_date",
-                    "order_date", "courier", "status", "channel"]
+                    "order_date", "order_time", "courier", "status", "channel"]
 NO_CHANNEL = "(no channel)"  # a DN whose custom_channel is empty
 
 # fact flags (the Dashboard tab reads them by bit)
@@ -250,7 +250,8 @@ HAS_AWB, HAS_EDD = 1, 2
 
 # The page's data layout. A cache left on disk by a build with another layout is dropped at start-up and rebuilt,
 # rather than served to a page that would misread it. 2: facts and pendency rows got the channel.
-SCHEMA = 2
+# 3: pendency rows got the order time (IST, HH:MM).
+SCHEMA = 3
 
 # ------------------------------------------------------------------ the derived columns
 
@@ -504,7 +505,7 @@ def build(erp_rows, cp_rows, edd_rows, now=None, edd_problem=None):
 
         if not awb and where == "WH" and shown in PENDENCY_STATUSES:
             line = (row["sales_order"], dn, facility, row["pick_number"] or "", ideal.isoformat(),
-                    order_time.date().isoformat(), who, shown, channel)
+                    order_time.date().isoformat(), order_time.strftime("%H:%M"), who, shown, channel)
             pendency[line] = None
         if dn in dns_seen:
             continue  # the dashboard counts DNs: one more sales order on the same DN changes nothing
