@@ -277,7 +277,8 @@ def test_warehouse_pendency_is_mother_warehouse_dns_with_no_awb_still_being_work
     assert set(rows) == {"DN1", "DN6", "DN7"}
     assert rows["DN1"]["status"] == "Packed" and rows["DN1"]["ideal_pickup_date"] == "2026-10-30"
     assert rows["DN1"]["pick_number"] == "PICK-1" and rows["DN1"]["courier"] == "Bluedart"
-    assert rows["DN6"]["ideal_pickup_date"] == "2026-11-01"
+    assert rows["DN1"]["order_date"] == "2026-10-30" and rows["DN1"]["order_time"] == "10:00"
+    assert rows["DN6"]["ideal_pickup_date"] == "2026-11-01" and rows["DN6"]["order_time"] == "15:00"
     # the promise engine gave SO7 from Dankuni a cutoff of 0: due today, no AWB needed, not on the noon rule
     assert rows["DN7"]["ideal_pickup_date"] == "2026-10-31"
 

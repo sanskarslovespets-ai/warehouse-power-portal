@@ -23,7 +23,7 @@
   const C = { fac: 0, bucket: 1, ideal: 2, order: 3, dn: 4, status: 5, courier: 6, channel: 7, flags: 8, n: 9 };
   const HAS_AWB = 1, HAS_EDD = 2;
   // pendency row layout: control_tower.PENDENCY_COLUMNS
-  const P = { so: 0, dn: 1, wh: 2, pick: 3, ideal: 4, order: 5, courier: 6, status: 7, channel: 8 };
+  const P = { so: 0, dn: 1, wh: 2, pick: 3, ideal: 4, order: 5, time: 6, courier: 7, status: 8, channel: 9 };
 
   const DEFAULT_BUCKETS = ["WH", "DS"]; // the sheet's dashboard listed warehouses and darkstores
   const DEFAULT_STATUS = "To Be Picked"; // the sheet's status-level block opened on this
@@ -289,12 +289,12 @@
     const dcols = [
       { label: "Sales order" }, { label: "DN", cls: "ct-left" }, { label: "Warehouse", cls: "ct-left" },
       { label: "Pick list", cls: "ct-left" }, { label: "Ideal pickup", render: dateCell }, { label: "Order date", render: dateCell },
-      { label: "Courier", cls: "ct-left" }, { label: "Status", cls: "ct-left" }, { label: "Channel", cls: "ct-left" },
+      { label: "Order time" }, { label: "Courier", cls: "ct-left" }, { label: "Status", cls: "ct-left" }, { label: "Channel", cls: "ct-left" },
       { label: "Days late", num: true, render: lateCell },
     ];
-    const drows = rs.map((r) => [r[P.so], r[P.dn], r[P.wh], r[P.pick], r[P.ideal], r[P.order], r[P.courier], r[P.status],
-      r[P.channel], daysBetween(r[P.ideal], today)]);
-    const n = table("t-ct-p-rows", dcols, drows, null, { sort: { col: 9, dir: -1 }, limit: ROW_LIMIT, empty: "No pending DNs match." });
+    const drows = rs.map((r) => [r[P.so], r[P.dn], r[P.wh], r[P.pick], r[P.ideal], r[P.order], r[P.time], r[P.courier],
+      r[P.status], r[P.channel], daysBetween(r[P.ideal], today)]);
+    const n = table("t-ct-p-rows", dcols, drows, null, { sort: { col: 10, dir: -1 }, limit: ROW_LIMIT, empty: "No pending DNs match." });
     el("ct-p-shown").textContent = n > ROW_LIMIT
       ? "first " + fmt(ROW_LIMIT) + " of " + fmt(n) + " rows · Export CSV has them all"
       : fmt(n) + " rows";
