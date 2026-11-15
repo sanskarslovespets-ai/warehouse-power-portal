@@ -28,7 +28,8 @@
     const panels = new Set(me.panels);
     document.body.dataset.role = me.role; // shows the page (style.css) and hides .edit-only buttons from viewers
 
-    document.querySelectorAll(".side-nav-item[data-panel]").forEach((item) => {
+    // Help (data-always) is for everyone, whatever tabs they have.
+    document.querySelectorAll(".side-nav-item[data-panel]:not([data-always])").forEach((item) => {
       item.hidden = !panels.has(item.dataset.panel);
     });
     document.querySelectorAll(".nav-group").forEach((group) => {
@@ -39,7 +40,7 @@
     // before its script has run (/api/me can answer while they are still loading) would leave it blank.
     const active = document.querySelector(".side-nav-item.active");
     if (!active || active.hidden) {
-      const first = document.querySelector(".side-nav-item:not([hidden])");
+      const first = document.querySelector(".side-nav-item:not([hidden]):not([data-always])");
       if (!first) showNoAccess();
       else if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => first.click(), { once: true });
       else first.click();
