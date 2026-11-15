@@ -300,6 +300,37 @@ Users page as "Warehouse Exceptions".
   run as a formula as text, and a fifth warehouse running bin determination gets
   its own colour (the original had four).
 
+### Warehouse Dashboards → BoxVault
+
+**Upload invoices**: choose a warehouse, add one or more invoice files, and they
+are saved to Google Drive. Given to people on the Users page as "BoxVault";
+editors and admins can upload, viewers only see the panel.
+
+- **Warehouses:** the seven mother warehouses, shown as the team names them
+  (`boxvault.WAREHOUSES`); each is stored under its ERP code (New Bhiwandi
+  warehouse 002 is `MWH_Mum_Bhiwandi_002`).
+- **Files:** PDFs, images (jpg, png, webp, heic) and spreadsheets (xlsx, xls,
+  csv); up to 20 per upload, 500 MB in all. Choosing files again adds to the
+  list; anything else is refused before anything is sent.
+- **Where they go:** the Drive folder `DRIVE_INVOICE_FOLDER_ID`, inside a folder
+  per warehouse named by its ERP code, made the first time that warehouse gets
+  an invoice. Each file keeps the name it was uploaded with (characters other
+  than letters, digits, spaces and `. _ - ( ) &` become `_`), and its Drive
+  description says who uploaded it. The portal keeps no copy or list of its own:
+  the panel shows what was uploaded since the page was opened, with Drive links.
+- **Setting it up:** make the folder **in a shared drive**, not in someone's My
+  Drive: Drive won't store a service account's uploads in a My Drive ("Service
+  Accounts do not have storage quota"), and the panel says so if the folder is
+  there. Share the folder as Editor (Content manager) with the Cloud Run runtime
+  account, `warehouse-portal-runtime@sup-internal-apps.iam.gserviceaccount.com`
+  per `cloudbuild.yaml`, and locally with the one in `service_account.json`.
+  Then set its id as `DRIVE_INVOICE_FOLDER_ID` in `.env` and in
+  `cloudbuild.yaml`'s `--set-env-vars`. `python3 -c "import google_services, json;
+  print(json.dumps(google_services.diagnostics(), indent=2))"` checks it
+  (`invoice_folder`).
+- **If Drive fails partway:** the files that went through are listed, and only
+  the ones that didn't stay in the form to send again.
+
 `python3 main.py` is shorthand for `python3 -m uvicorn main:app --reload --port 5659`.
 
 ## 4. Data refresh: every morning at 9:00, plus Refresh from DB
@@ -412,7 +443,12 @@ GOOGLE_SHEET_ID=1n5mB90-cGl_6z3eT8JqPRlnYyJdAe25OnOeBvflLl-o
 GOOGLE_SHEET_TAB=            # blank = first tab in the sheet
 DRIVE_POD_FOLDER_ID=1gFXs62BQVonoSrhyhlX6qmIDUSGv9RrW
 DRIVE_VIDEO_FOLDER_ID=1AjU2wVAKpDoWe-WvgUEdt04mqfiZKX1I
+DRIVE_INVOICE_FOLDER_ID=1KVeQCG7G8GSruf-mjOh5ZHVPtoFwndo_
 ```
+
+`DRIVE_INVOICE_FOLDER_ID` is BoxVault's "box vault" folder in a shared drive
+(see Warehouse Dashboards → BoxVault), the same folder locally and on Cloud Run:
+an invoice uploaded from a local run lands with the real ones.
 
 `.env`, `credentials.json`, `token.json` and `service_account.json` all hold
 secrets and are git-ignored. The DB password and the service account's private

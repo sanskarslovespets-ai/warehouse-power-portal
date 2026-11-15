@@ -522,8 +522,9 @@ def test_the_top_bar_shows_and_refreshes_only_the_data_behind_your_tabs(main, ac
 
 def test_the_users_page_shows_each_tab_under_its_sidebar_group(main, accounts):
     tabs = client(main, accounts, "tester").get("/api/users").json()["tabs"]
-    assert [t["group"] for t in tabs] == ["RTO"] * 5 + ["Breach Explorer"] * 6 + ["Warehouse Dashboards"] * 2
+    assert [t["group"] for t in tabs] == ["RTO"] * 5 + ["Breach Explorer"] * 6 + ["Warehouse Dashboards"] * 3
     assert {"id": "warehouse-exceptions", "name": "Warehouse Exceptions", "group": "Warehouse Dashboards"} in tabs
+    assert {"id": "boxvault", "name": "BoxVault", "group": "Warehouse Dashboards"} in tabs
     assert {"id": "be-rto", "name": "RTO", "group": "Breach Explorer"} in tabs
     r = client(main, accounts, "tester").post("/api/users", json={
         "username": "pendency.only", "password": "long-enough-1", "role": "viewer", "tabs": ["be-pendency", "be-rto"]})
