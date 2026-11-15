@@ -302,22 +302,79 @@ Users page as "Warehouse Exceptions".
 
 ### Warehouse Dashboards → BoxVault
 
-**Upload invoices**: choose a warehouse, add one or more invoice files, and they
-are saved to Google Drive. Given to people on the Users page as "BoxVault";
-editors and admins can upload, viewers only see the panel.
+**Upload invoices**: add one or more invoice files and they are saved to Google
+Drive; each supplier PDF invoice's line items are read into the **Invoice
+Entry** tab, under the warehouse its Ship To address names (there's no warehouse
+to choose, so one upload can cover several warehouses). Given to people on the Users page as "BoxVault";
+editors and admins can upload (and take an invoice out of Invoice Entry),
+viewers only see it.
 
-- **Warehouses:** the seven mother warehouses, shown as the team names them
-  (`boxvault.WAREHOUSES`); each is stored under its ERP code (New Bhiwandi
-  warehouse 002 is `MWH_Mum_Bhiwandi_002`).
+- **Warehouses:** the seven mother warehouses (`boxvault.WAREHOUSES`):
+  MWH_Blr_Neelmangla_002, MWH_Chn_Kovur_001, MWH_Hyd_Manikonda_001,
+  MWH_Kol_Dankuni_001, MWH_Mum_Bhiwandi_002, MWH_Pun_Khed_001 and WH_Delhi_002.
+  Each is stored under its ERP code; WH_Delhi_002 is `MWH_Ggn_bhajgera_001`.
+- **Which warehouse:** `boxvault.warehouse_for()` reads the invoice's Ship To
+  address (not the Bill To: Bhiwandi invoices are often billed to the Karnataka
+  office). A warehouse's own pincode decides first (`PINCODES`, from its address
+  in the ERP's `tabAddress`), else a city or place name in the address
+  (`CITIES`), which covers the supplier's other addresses: Bhiwandi invoices to
+  the old Bhiwandi_001 premises (same pincode) and a Kolkata one to Pamasree,
+  700060. All 72 October 2026 invoices land where the team had filed them. An
+  invoice whose address matches no warehouse (or two) isn't entered; its file
+  goes to Drive's `Unsorted` folder and the upload says why.
 - **Files:** PDFs, images (jpg, png, webp, heic) and spreadsheets (xlsx, xls,
   csv); up to 20 per upload, 500 MB in all. Choosing files again adds to the
   list; anything else is refused before anything is sent.
 - **Where they go:** the Drive folder `DRIVE_INVOICE_FOLDER_ID`, inside a folder
   per warehouse named by its ERP code, made the first time that warehouse gets
-  an invoice. Each file keeps the name it was uploaded with (characters other
+  an invoice; files no warehouse could be read from (photos, spreadsheets, other
+  layouts, unmatched addresses) go in `Unsorted`. Each file keeps the name it was uploaded with (characters other
   than letters, digits, spaces and `. _ - ( ) &` become `_`), and its Drive
-  description says who uploaded it. The portal keeps no copy or list of its own:
-  the panel shows what was uploaded since the page was opened, with Drive links.
+  description says who uploaded it.
+- **Invoice Entry:** one row per line item: warehouse, item & description, SKU,
+  quantity, tax %, tax amount, total amount (before tax + tax), invoice date and
+  the invoice number (opens the PDF in Drive), with filters, totals and Export
+  CSV. `invoice_pdf.py` reads the PDF's text (the supplier's Zoho layout: IGST,
+  or CGST + SGST; 8-digit HSN codes and long SKUs that wrap are put back
+  together), and keeps an invoice only if its lines add up to its Sub Total and,
+  with tax, its Total. All 72 of Dealberg's October 2026 invoices read and
+  matched their totals. Scans, photos, spreadsheets and other layouts are still
+  saved to Drive, and the upload says they weren't read.
+- **Kept in:** `scm.boxvault_invoice_lines` (`invoice_entries.py`), made by the
+  first invoice saved, like `warehouse_user_access`; the database account needs
+  CREATE for that, then SELECT, INSERT and DELETE. An invoice is known by its
+  supplier's GSTIN and number, so one already entered is neither entered nor
+  uploaded again; Remove takes one out (its PDF stays in Drive), a cancelled
+  invoice say, and it can be uploaded again.
+- **Analytics** (the first view, `static/js/boxvault_analytics.js`): Invoice
+  Entry's lines totalled in the browser, with warehouse, month and item filters
+  (clicking a bar filters too):
+  - **KPIs:** spend, invoices, average invoice, and boxes bought, used and left.
+  - **Spend over time:** spend or quantity, by week or month, stacked by warehouse.
+  - **Spend by warehouse and top items:** horizontal bars.
+  - **Data checks:** invoices for one warehouse with identical lines (cancelled
+    and re-issued?), SKUs whose price changed, more boxes used than bought, lines
+    without a SKU, and SKUs with no ERP usage.
+  - **Stock by warehouse and SKU:** bought, used, left, price and spend.
+
+  Each warehouse keeps one colour whatever the filters (slots 1–7 of a
+  palette validated for colour-blind separation on the card surface).
+- **Refresh:** Analytics and Invoice Entry (with SKU used from the ERP) are
+  fetched again every hour while the page is open; a page in a background tab
+  refreshes when it's next looked at. The time of the last refresh is shown
+  next to the views, and a failed hourly refresh keeps what's shown.
+- **SKU used / SKU left** (`box_usage.py`): counted from the ERP (`DN_DB_*`)
+  each time Invoice Entry loads. SKU used = completed delivery notes (`status =
+  'Completed'`, `is_return = 0`) from the invoice's warehouse
+  (`custom_mother_warehouse`) that carry the box's SKU as an item, dated on or
+  after the invoice date; one delivery note is one box. SKU left = quantity −
+  SKU used. When a warehouse has several invoices for a SKU, each box goes
+  against the oldest invoice dated on or before its delivery note that still has
+  boxes left, so none is counted twice; any beyond that go on the newest one,
+  whose SKU left goes below 0 (in red). If the ERP can't be read, the lines are
+  still listed with "—" and a note. Box SKUs have rarely been put on delivery
+  notes since June 2025 (one in October 2026, at Gurugram), so for now SKU used
+  is mostly 0.
 - **Setting it up:** make the folder **in a shared drive**, not in someone's My
   Drive: Drive won't store a service account's uploads in a My Drive ("Service
   Accounts do not have storage quota"), and the panel says so if the folder is

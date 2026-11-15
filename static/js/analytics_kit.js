@@ -176,7 +176,7 @@
   function segmented(options, current, onPick) {
     const wrap = el("div", { class: "seg" });
     options.forEach(([value, label]) => {
-      const b = el("button", { type: "button", class: "seg-btn" + (value === current ? " active" : "") }, label);
+      const b = el("button", { type: "button", class: "seg-btn" + (value === current ? " active" : ""), "aria-pressed": String(value === current) }, label);
       b.addEventListener("click", () => onPick(value));
       wrap.appendChild(b);
     });
@@ -217,16 +217,22 @@
   const PLOT_LEFT = 42, PLOT_RIGHT = 888, PLOT_TOP = 14, PLOT_BOTTOM = 190;
 
   // cfg = {card, title, sub, ariaLabel, series, colorOf, points: [{bucket, total, values: {series: count}}],
-  //        granularity, empty, unit: ["entry", "entries"]}.
+  //        granularity, empty, unit: ["entry", "entries"], toggles}; optional format(v) for the values (tooltip and
+  //        table, default "1,234 entries"), axisFormat(v) for the y axis, gap (between stacked segments, default 0.8).
   function renderStackedTrend(cfg) {
     const { card, series, colorOf, points, granularity } = cfg;
     const unit = cfg.unit || ["entry", "entries"];
+    const fmt = cfg.format || ((v) => `${v.toLocaleString()} ${plural(v, unit)}`);
+    const cell = cfg.format || ((v) => v);
+    const gap = cfg.gap == null ? 0.8 : cfg.gap;
     card.textContent = "";
     const label = (p) => formatBucketLabel(p.bucket, granularity);
 
-    const table = simpleTable(["Period", ...series, "Total"], points.map((p) => [label(p), ...series.map((n) => p.values[n]), p.total]));
+    const table = simpleTable(["Period", ...series, "Total"],
+      points.map((p) => [label(p), ...series.map((n) => (p.values[n] == null ? "" : cell(p.values[n]))), cell(p.total)]));
     const chart = el("div", { class: "trend-svg-wrap" });
-    card.appendChild(cardHeader(cfg.title, points.length ? tableToggle(chart, table) : null));
+    const toggles = el("div", { class: "chart-card-tools" }, cfg.toggles || [], points.length ? tableToggle(chart, table) : []);
+    card.appendChild(cardHeader(cfg.title, toggles));
     card.appendChild(subline(cfg.sub));
     if (!points.length) {
       card.appendChild(emptyNote(cfg.empty));
@@ -245,7 +251,7 @@
       const y = yFor(v);
       svg.appendChild(svgEl("line", { class: "trend-gridline", x1: PLOT_LEFT, x2: PLOT_RIGHT, y1: y, y2: y }));
       const t = svgEl("text", { class: "trend-axis-label", x: PLOT_LEFT - 8, y: y + 3, "text-anchor": "end" });
-      t.textContent = formatCompact(Math.round(v));
+      t.textContent = cfg.axisFormat ? cfg.axisFormat(v) : formatCompact(Math.round(v));
       svg.appendChild(t);
     });
     pickTickIndices(n, 8).forEach((i) => {
@@ -262,16 +268,16 @@
         const v = p.values[name];
         if (!v) return;
         const y1 = yFor(acc + v), y0 = yFor(acc);
-        group.appendChild(svgEl("rect", { x, y: y1, width: barW, height: Math.max(y0 - y1 - (acc ? 0.8 : 0), 1), rx: 1.5, fill: colorOf(name) }));
+        group.appendChild(svgEl("rect", { x, y: y1, width: barW, height: Math.max(y0 - y1 - (acc ? gap : 0), 1), rx: 1.5, fill: colorOf(name) }));
         acc += v;
       });
       // wide invisible hit rect so thin or empty columns are still hoverable
       const hit = svgEl("rect", { x: PLOT_LEFT + slot * i, y: PLOT_TOP, width: slot, height: PLOT_BOTTOM - PLOT_TOP, fill: "transparent" });
       const present = series.filter((name) => p.values[name]).sort((a, b) => p.values[b] - p.values[a]);
-      const shown = present.slice(0, 5).map((name) => `${name} ${p.values[name]}`);
+      const shown = present.slice(0, 5).map((name) => `${name} ${cfg.format ? cfg.format(p.values[name]) : p.values[name]}`);
       if (present.length > 5) shown.push(`+${present.length - 5} more`);
       const detail = shown.join(" · ") || `No ${unit[1]}`;
-      hit.addEventListener("mouseenter", () => tooltipAtElement(hit, `${p.total.toLocaleString()} ${plural(p.total, unit)}`, `${label(p)} · ${detail}`));
+      hit.addEventListener("mouseenter", () => tooltipAtElement(hit, fmt(p.total), `${label(p)} · ${detail}`));
       hit.addEventListener("mouseleave", hideTooltip);
       group.appendChild(hit);
       svg.appendChild(group);
@@ -289,7 +295,9 @@
     return top.concat([{ label: "Other", count: other, isOther: true }]);
   }
 
-  // opts: {unit, colorFor(row), onPick(row), selected, valueText(row, total), sub}
+  // opts: {unit, colorFor(row), onPick(row), selected, valueText(row, total), sub, tipText(row, total) for the tooltip's
+  //        value, tableText(row) for the table's (both default to the count), dropOther: show only the top
+  //        TOP_N_BARS, scaled to themselves, with no "Other" bar (say what's left out in `sub`)}
   function renderBarCard(card, title, fullData, opts) {
     opts = opts || {};
     card.textContent = "";
@@ -299,7 +307,7 @@
       return;
     }
     const total = fullData.reduce((s, r) => s + r.count, 0);
-    const rows = buildBarDisplayRows(fullData);
+    const rows = opts.dropOther ? fullData.slice(0, TOP_N_BARS) : buildBarDisplayRows(fullData);
     const maxCount = Math.max(...rows.map((r) => r.count));
 
     const list = el("div", { class: "hbar-list" });
@@ -311,7 +319,8 @@
         el("div", { class: "hbar-label" }, r.label),
         el("div", { class: "hbar-track" }, fill),
         el("div", { class: "hbar-value" }, opts.valueText ? opts.valueText(r, total) : formatCompact(r.count)));
-      row.addEventListener("mouseenter", () => tooltipAtElement(row, `${r.count.toLocaleString()} (${Math.round((100 * r.count) / total)}%)`, r.label));
+      const tip = opts.tipText ? opts.tipText(r, total) : `${r.count.toLocaleString()} (${Math.round((100 * r.count) / total)}%)`;
+      row.addEventListener("mouseenter", () => tooltipAtElement(row, tip, r.label));
       row.addEventListener("mouseleave", hideTooltip);
       if (pickable) {
         row.addEventListener("click", () => {
@@ -323,7 +332,7 @@
     });
 
     const table = simpleTable([title, opts.unit || "Entries", "Share"],
-      fullData.map((r) => [r.label, r.count, `${Math.round((100 * r.count) / total)}%`]));
+      fullData.map((r) => [r.label, opts.tableText ? opts.tableText(r) : r.count, `${Math.round((100 * r.count) / total)}%`]));
     card.appendChild(cardHeader(title, tableToggle(list, table)));
     card.appendChild(subline(opts.sub || (fullData.length > TOP_N_BARS ? `Top ${TOP_N_BARS} of ${fullData.length}` : `${fullData.length} total`)));
     card.appendChild(list);
@@ -643,7 +652,7 @@
 
   window.AnalyticsKit = {
     TOP_N_BARS, SERIES_COLORS, OTHER_COLOR, PRESET_LABELS,
-    fetchJson, svgEl, el, formatCompact, formatRupees, formatRupeesFull, dateStr, todayStr, addDays, computePresetRange,
+    TOP_N_BARS, fetchJson, svgEl, el, formatCompact, formatRupees, formatRupeesFull, dateStr, todayStr, addDays, computePresetRange,
     formatBucketLabel, niceMax, pickTickIndices, hexToRgb, colorMap, plural,
     showTooltip, hideTooltip, tooltipAtElement,
     cardHeader, tableToggle, simpleTable, segmented, emptyNote, subline, legend, fillSelect, pickSub,
