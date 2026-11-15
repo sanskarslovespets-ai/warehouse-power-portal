@@ -30,6 +30,11 @@
   const qtyText = (n) => n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
   const rate = (n) => "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const pct = (part, whole) => (whole ? Math.round((100 * part) / whole) : 0);
+  // Used as a % of bought, to 1 decimal place (an integer shows without one): "0%", "12.5%", "120%".
+  const usedPct = (used, bought) => {
+    const v = Math.round((1000 * used) / bought) / 10;
+    return v.toLocaleString("en-IN", { maximumFractionDigits: 1 }) + "%";
+  };
   const invoiceKey = (r) => r.supplier_gstin + " " + r.invoice_number;
   const monthLabel = (ym) => `${MON[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
   const dayLabel = (iso) => `${+iso.slice(8, 10)} ${MON[+iso.slice(5, 7) - 1]}`;
@@ -112,6 +117,7 @@
     const known = usageKnown(list);
     const used = known ? sum(list, "used") : null;
     const left = known ? sum(list, "left") : null;
+    const boughtWithSku = sum(list.filter((r) => r.sku), "qty");
     const usedHint = known
       ? "Completed ERP delivery notes carrying the box SKUs since their invoices (Invoice Entry's SKU used)." +
         (used === 0 ? " None so far: the ERP isn't putting box SKUs on delivery notes." : "")
@@ -124,6 +130,8 @@
         hint: invoices ? `${formatRupeesFull(spend / invoices)} per invoice, with GST` : "" },
       { label: "Bought", value: formatCompact(Math.round(bought)), accent: ACCENT, hint: `${qtyText(bought)} boxes and other items` },
       { label: "Used", value: used == null ? "—" : formatCompact(Math.round(used)), accent: ACCENT, hint: usedHint },
+      { label: "Used %", value: used == null || !boughtWithSku ? "—" : usedPct(used, boughtWithSku), accent: ACCENT,
+        hint: used == null ? "The ERP couldn't be read, so boxes used aren't known." : "Boxes used as a share of boxes bought (Invoice Entry's SKU used %, across these lines)" },
       { label: "Left", value: left == null ? "—" : formatCompact(Math.round(left)), accent: ACCENT, hint: "Bought minus used" },
     ];
   }
@@ -278,11 +286,12 @@
     })).sort((a, b) => order[a.warehouse] - order[b.warehouse] || b.spend - a.spend);
 
     const head = ["Warehouse", "SKU", "Item"].map((h) => el("th", { class: "ct-left" }, h)).concat(
-      ["Bought", "Used", "Left", "Price per box", "Spend", "Last invoice"].map((h) => el("th", {}, h)));
+      ["Bought", "Used", "Used %", "Left", "Price per box", "Spend", "Last invoice"].map((h) => el("th", {}, h)));
     const body = stock.map((s) => el("tr", {},
       cell(nameById[s.warehouse], "ct-left"), cell(s.sku || "—", "ct-left bv-sku"), cell(s.item, "ct-left"),
       cell(qtyText(s.bought)),
       cell(s.used == null ? "—" : qtyText(s.used), s.used == null ? "bv-na" : ""),
+      cell(s.used == null || !s.bought ? "—" : usedPct(s.used, s.bought), s.used == null || !s.bought ? "bv-na" : s.used > s.bought ? "bv-over" : ""),
       cell(s.left == null ? "—" : qtyText(s.left), s.left == null ? "bv-na" : s.left < 0 ? "bv-over" : ""),
       cell(s.bought ? rate(s.amount / s.bought) : "—"),
       cell(formatRupeesFull(s.spend)),

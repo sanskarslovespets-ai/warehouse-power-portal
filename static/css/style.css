@@ -1722,13 +1722,18 @@ fieldset.form-row legend { margin-bottom: 6px; padding: 0; font-size: 12.5px; fo
 /* Invoice Entry */
 .bx .bv-viewbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 16px; }
 .bx .bv-updated { font-size: 12px; color: var(--muted); }
-.bx #bv-table td.bv-desc { white-space: normal; min-width: 220px; max-width: 340px; }
+.bx #bv-table th, .bx #bv-table td { padding-left: 7px; padding-right: 7px; }
+.bx #bv-table td.bv-desc { white-space: normal; min-width: 180px; max-width: 300px; }
 .bx #bv-table td.bv-sku { font-family: var(--font-mono); font-size: 12px; }
 .bx #bv-table td.bv-na { color: var(--muted); }
 .bx #bv-table td.bv-over { color: var(--error); font-weight: 600; }
 .bx #bv-usage-problem { margin: 0 0 16px; }
 /* BoxVault > Analytics (boxvault_analytics.js) */
-.bx #bv-analytics .kpi-row { margin-top: 16px; }
+.bx #bv-analytics .kpi-row { margin-top: 16px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.bx #bv-analytics .kpi-tile { padding: 14px 16px; }
+.bx #bv-analytics .kpi-tile .kpi-value { font-size: 30px; }
+@media (max-width: 1180px) { .bx #bv-analytics .kpi-row { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .bx #bv-analytics .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .bx #bv-analytics .chart-grid .hbar-row { grid-template-columns: 172px 1fr auto; }
 .bx #bv-analytics .panel { margin-top: 16px; }
 .bx .bv-a-table td.bv-na { color: var(--muted); }

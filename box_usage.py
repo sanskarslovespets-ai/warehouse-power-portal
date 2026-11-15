@@ -9,8 +9,8 @@ delivery note's custom_mother_warehouse, the ERP code BoxVault keeps an invoice 
     WHERE dni.item_code = 'DBSUPTDEL006' AND dn.custom_mother_warehouse = 'MWH_Ggn_bhajgera_001'
       AND dn.status = 'Completed' AND dn.is_return = 0 AND dn.posting_date >= '<invoice date>'
 
-and SKU left = the invoice's quantity - SKU used. When a warehouse has several invoices for a SKU, each box
-goes against the oldest invoice dated on or before its delivery note that still has boxes left, so no box is
+SKU left = the invoice's quantity - SKU used, and SKU used % = SKU used / quantity. When a warehouse has several
+invoices for a SKU, each box goes against the oldest invoice dated on or before its delivery note that still has boxes left, so no box is
 counted twice; boxes beyond what those invoices bought go on the newest of them, whose SKU left goes below 0.
 """
 from collections import defaultdict
@@ -71,11 +71,12 @@ def allocate(invoices, days):
 
 
 def add(rows):
-    """Puts "used" and "left" on each Invoice Entry row ({warehouse, sku, qty, invoice_date, invoice_number,
-    line_no}); None on a line without a SKU. Raises if the ERP can't be read."""
+    """Puts "used", "left" and "used_pct" (used as a % of the quantity, to 1 decimal place) on each Invoice Entry
+    row ({warehouse, sku, qty, invoice_date, invoice_number, line_no}); None on a line without a SKU. Raises if
+    the ERP can't be read."""
     groups = defaultdict(list)
     for row in rows:
-        row["used"] = row["left"] = None
+        row["used"] = row["left"] = row["used_pct"] = None
         if row["sku"]:
             groups[(row["warehouse"], row["sku"])].append(row)
     if not groups:
@@ -88,3 +89,4 @@ def add(rows):
         for row, n in zip(lines, used):
             row["used"] = n
             row["left"] = row["qty"] - n
+            row["used_pct"] = round(100 * n / row["qty"], 1) if row["qty"] else None

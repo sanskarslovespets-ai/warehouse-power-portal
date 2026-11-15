@@ -244,7 +244,7 @@ def _enter(invoice, reason, warehouse, name, link, by):
 
 def entries():
     """Invoice Entry for the page: {"rows": every line, with the name the dropdown gives its warehouse and its SKU
-    used / SKU left (box_usage.py), "usage_problem": why those are missing, or None}.
+    used / SKU left / SKU used % (box_usage.py), "usage_problem": why those are missing, or None}.
 
     The lines come from scm and the usage from the ERP, so if the ERP can't be read the lines are still listed.
     """
@@ -257,6 +257,7 @@ def entries():
     except Exception:
         traceback.print_exc()
         for row in rows:
-            row["used"] = row["left"] = None
-        problem = "Couldn't read the ERP's delivery notes, so SKU used and SKU left show \"—\". Reload to try again."
+            row["used"] = row["left"] = row["used_pct"] = None
+        problem = ("Couldn't read the ERP's delivery notes, so SKU used, SKU used % and SKU left show \"—\". "
+                   "Reload to try again.")
     return {"rows": rows, "usage_problem": problem}
