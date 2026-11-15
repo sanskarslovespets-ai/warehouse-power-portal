@@ -1,9 +1,13 @@
 """BoxVault (boxvault.py, /api/boxvault*): Upload invoices (what's checked, where files go in Drive, partial
 failures, who may upload) and Invoice Entry (PDF invoices' lines saved, listed and taken out). Google Drive and
-scm.boxvault_invoice_lines are stand-ins that record what they were sent."""
+scm.boxvault_invoice_lines are stand-ins that record what they were sent, and so is the ERP that SKU used is
+counted from (box_usage.py)."""
+from datetime import date
+
 import pytest
 from fastapi.testclient import TestClient
 
+import box_usage
 import boxvault
 import google_services
 import invoice_entries
@@ -12,15 +16,16 @@ from pdf_fixture import make_pdf
 LOCAL = ("127.0.0.1", 50000)
 FOLDER = "invoices-folder-id"
 NOT_PDF = "only PDF invoices are read into Invoice Entry"
+REAL_SHIPPED = box_usage.shipped  # the erp fixture stands in for it in every other test
 
 
-def invoice_pdf(number="INV-20262642", sku="DBSUPTDEL006", qty="916.00"):
+def invoice_pdf(number="INV-20262642", sku="DBSUPTDEL006", qty="916.00", dated="01/10/2026"):
     """A PDF with the supplier's invoice text (see test_invoice_pdf.py): one 15x15x15 box line, 11.00 each, IGST 5%."""
     amount = float(qty.replace(",", "")) * 11
     tax = round(amount * 0.05, 2)
     return make_pdf([
         "DEALBERG TECHNOLOGIES PVT LTD", "GSTIN 29AAFCD7015E1ZT", "TAX INVOICE", f" Invoice# {number}",
-        "  Invoice Date : 01/10/2026", "# Item & Description HSN/SAC Qty Rate", "IGST", "Amount% Amt",
+        f"  Invoice Date : {dated}", "# Item & Description HSN/SAC Qty Rate", "IGST", "Amount% Amt",
         "1 DEL Supertails 15*15*15 Printed 5 Ply ", " carton box", f" {sku}",
         f"481910 {qty} 11.00 5% {tax:,.2f} {amount:,.2f}", "Total In Words",
         f"Sub Total {amount:,.2f}", f"IGST5 (5%) {tax:,.2f}", f"Total {amount + tax:,.2f}"])
@@ -65,6 +70,28 @@ def entries(monkeypatch):
     fake = FakeEntries()
     for name in ("entered", "add", "rows", "remove"):
         monkeypatch.setattr(invoice_entries, name, getattr(fake, name))
+    return fake
+
+
+class FakeErp:
+    """box_usage.shipped(): the ERP's completed delivery notes carrying a box SKU, as {(warehouse, sku): [(day, n)]}."""
+
+    def __init__(self):
+        self.days = {}
+        self.asked = []  # (skus, warehouses, since) of each call
+        self.fail = False
+
+    def shipped(self, skus, warehouses, since):
+        self.asked.append((set(skus), set(warehouses), since))
+        if self.fail:
+            raise TimeoutError("ERP replica timed out")
+        return {key: days for key, days in self.days.items() if key[0] in warehouses and key[1] in skus}
+
+
+@pytest.fixture(autouse=True)
+def erp(monkeypatch):
+    fake = FakeErp()
+    monkeypatch.setattr(box_usage, "shipped", fake.shipped)
     return fake
 
 
@@ -259,7 +286,7 @@ def test_a_pdf_invoice_is_uploaded_and_its_lines_listed_for_the_warehouse(main, 
         "description": "DEL Supertails 15*15*15 Printed 5 Ply carton box", "sku": "DBSUPTDEL006", "qty": 916.0,
         "tax_pct": 5.0, "tax_amount": 503.8, "total": 10579.8, "invoice_date": "2026-10-01",
         "invoice_number": "INV-20262642", "drive_link": "https://drive.example/INV-20262642.pdf", "uploaded_by": "tester"}]
-    assert "used" not in rows[0] and "left" not in rows[0]  # no SKU used / SKU left columns
+    assert (rows[0]["used"], rows[0]["left"]) == (0, 916.0)  # no delivery note has carried the box yet
 
 
 def test_an_invoice_already_entered_is_neither_entered_nor_uploaded_again(main, accounts, drive, entries):
@@ -321,3 +348,101 @@ def test_invoice_entry_failing_to_load_says_so(main, accounts, monkeypatch):
     monkeypatch.setattr(invoice_entries, "rows", down)
     r = client(main, accounts, "tester").get("/api/boxvault/entries")
     assert (r.status_code, r.json()["error"]) == (502, "Could not read Invoice Entry from the database. Please try again.")
+
+
+# ------------------------------------------------------------------ SKU used / SKU left (box_usage.py)
+
+def test_sku_used_counts_the_warehouses_delivery_notes_since_the_invoice(main, accounts, drive, entries, erp):
+    c = client(main, accounts, "tester")
+    upload(c, "MWH_Ggn_bhajgera_001", ("INV-20262642.pdf", invoice_pdf()))
+    erp.days[("MWH_Ggn_bhajgera_001", "DBSUPTDEL006")] = [(date(2026, 10, 1), 3), (date(2026, 10, 20), 4)]
+    erp.days[("MWH_Pun_Khed_001", "DBSUPTDEL006")] = [(date(2026, 10, 5), 50)]  # another warehouse's boxes
+
+    data = c.get("/api/boxvault/entries").json()
+    assert data["usage_problem"] is None
+    assert [(r["used"], r["left"]) for r in data["rows"]] == [(7, 909.0)]
+    assert erp.asked == [({"DBSUPTDEL006"}, {"MWH_Ggn_bhajgera_001"}, date(2026, 10, 1))]
+
+
+def test_boxes_count_against_the_oldest_invoice_first_so_none_is_counted_twice(main, accounts, drive, entries, erp):
+    c = client(main, accounts, "tester")
+    upload(c, "MWH_Mum_Bhiwandi_002", ("a.pdf", invoice_pdf("INV-1", "DBSUPTMUM006", "100.00", "01/10/2026")),
+           ("b.pdf", invoice_pdf("INV-2", "DBSUPTMUM006", "50.00", "15/10/2026")))
+    upload(c, "MWH_Pun_Khed_001", ("c.pdf", invoice_pdf("INV-3", "DBSUPTMUM006", "40.00", "01/10/2026")))
+    erp.days[("MWH_Mum_Bhiwandi_002", "DBSUPTMUM006")] = [(date(2026, 10, 2), 60), (date(2026, 10, 16), 70)]
+    erp.days[("MWH_Pun_Khed_001", "DBSUPTMUM006")] = [(date(2026, 10, 9), 5)]
+
+    rows = c.get("/api/boxvault/entries").json()["rows"]
+    got = {r["invoice_number"]: (r["used"], r["left"]) for r in rows}
+    # INV-1 takes the first 100 of Bhiwandi's 130, INV-2 the other 30; Pune counts only its own
+    assert got == {"INV-1": (100, 0.0), "INV-2": (30, 20.0), "INV-3": (5, 35.0)}
+    assert erp.asked[-1][2] == date(2026, 10, 1)  # one query, from the earliest invoice
+
+
+@pytest.mark.parametrize("invoices, days, used", [
+    ([(date(2026, 10, 10), 100)], [(date(2026, 10, 9), 8), (date(2026, 10, 10), 2)], [2]),  # before the invoice: not its box
+    ([(date(2026, 10, 1), 10)], [(date(2026, 10, 2), 15)], [15]),  # more than bought: SKU left goes to -5
+    # a box can't be from an invoice dated after it went out, even when the older invoice is used up
+    ([(date(2026, 10, 1), 10), (date(2026, 10, 20), 10)], [(date(2026, 10, 5), 12), (date(2026, 10, 21), 3)], [12, 3]),
+    ([(date(2026, 10, 1), 10), (date(2026, 10, 1), 10)], [(date(2026, 10, 2), 25)], [10, 15]),  # beyond both: the newest
+    ([(date(2026, 10, 1), 10)], [], [0]),
+])
+def test_allocating_boxes_to_invoices(invoices, days, used):
+    assert box_usage.allocate(invoices, days) == used
+
+
+def test_a_line_without_a_sku_has_no_usage_and_isnt_asked_of_the_erp(erp):
+    rows = [{"warehouse": "MWH_Pun_Khed_001", "sku": "", "qty": 5.0, "invoice_date": "2026-10-01",
+             "invoice_number": "INV-9", "line_no": 1}]
+    box_usage.add(rows)
+    assert (rows[0]["used"], rows[0]["left"]) == (None, None) and erp.asked == []
+
+
+def test_when_the_erp_cant_be_read_the_lines_are_still_listed_and_the_page_hears(main, accounts, drive, entries, erp):
+    c = client(main, accounts, "tester")
+    upload(c, "MWH_Ggn_bhajgera_001", ("INV-20262642.pdf", invoice_pdf()))
+    erp.fail = True
+    r = c.get("/api/boxvault/entries")
+    assert r.status_code == 200
+    assert [(row["invoice_number"], row["used"], row["left"]) for row in r.json()["rows"]] == [("INV-20262642", None, None)]
+    assert r.json()["usage_problem"] == (
+        "Couldn't read the ERP's delivery notes, so SKU used and SKU left show \"—\". Reload to try again.")
+
+
+def test_the_erp_query_is_the_teams_delivery_note_count(monkeypatch):
+    sent = {}
+
+    class Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def execute(self, sql, args):
+            sent["sql"], sent["args"] = " ".join(sql.split()), args
+
+        def fetchall(self):
+            return [("MWH_Ggn_bhajgera_001", "DBSUPTDEL006", date(2026, 10, 3), 2),
+                    ("MWH_Ggn_bhajgera_001", "DBSUPTDEL006", date(2026, 10, 4), 1)]
+
+    class Conn:
+        closed = False
+
+        def cursor(self):
+            return Cursor()
+
+        def close(self):
+            Conn.closed = True
+
+    monkeypatch.setattr(box_usage, "get_dn_connection", lambda read_timeout=None: Conn())
+    out = REAL_SHIPPED({"DBSUPTDEL006", "DBSUPTDEL003"}, {"MWH_Ggn_bhajgera_001"}, date(2026, 10, 1))
+    assert out == {("MWH_Ggn_bhajgera_001", "DBSUPTDEL006"): [(date(2026, 10, 3), 2), (date(2026, 10, 4), 1)]}
+    sql = sent["sql"]
+    for part in ("COUNT(DISTINCT dni.parent)", "FROM `tabDelivery Note Item` dni",
+                 "JOIN `tabDelivery Note` dn ON dn.name = dni.parent", "dni.item_code IN (%s, %s)",
+                 "dn.custom_mother_warehouse IN (%s)", "dn.status = 'Completed'", "dn.is_return = 0",
+                 "dn.posting_date >= %s"):
+        assert part in sql
+    assert sent["args"] == ("DBSUPTDEL003", "DBSUPTDEL006", "MWH_Ggn_bhajgera_001", date(2026, 10, 1))
+    assert Conn.closed

@@ -808,9 +808,9 @@ def boxvault_upload(
 
 @app.get("/api/boxvault/entries")
 def boxvault_entries():
-    """Invoice Entry: every uploaded invoice's line items."""
+    """Invoice Entry: every uploaded invoice's line items, with SKU used / SKU left from the ERP."""
     try:
-        return {"rows": boxvault.entries()}
+        return boxvault.entries()
     except Exception:
         traceback.print_exc()
         raise HTTPException(502, "Could not read Invoice Entry from the database. Please try again.")

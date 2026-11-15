@@ -335,6 +335,18 @@ viewers only see it.
   supplier's GSTIN and number, so one already entered is neither entered nor
   uploaded again; Remove takes one out (its PDF stays in Drive) so it can be
   uploaded again, for the right warehouse say.
+- **SKU used / SKU left** (`box_usage.py`): counted from the ERP (`DN_DB_*`)
+  each time Invoice Entry loads. SKU used = completed delivery notes (`status =
+  'Completed'`, `is_return = 0`) from the invoice's warehouse
+  (`custom_mother_warehouse`) that carry the box's SKU as an item, dated on or
+  after the invoice date; one delivery note is one box. SKU left = quantity −
+  SKU used. When a warehouse has several invoices for a SKU, each box goes
+  against the oldest invoice dated on or before its delivery note that still has
+  boxes left, so none is counted twice; any beyond that go on the newest one,
+  whose SKU left goes below 0 (in red). If the ERP can't be read, the lines are
+  still listed with "—" and a note. Box SKUs have rarely been put on delivery
+  notes since June 2025 (one in October 2026, at Gurugram), so for now SKU used
+  is mostly 0.
 - **Setting it up:** make the folder **in a shared drive**, not in someone's My
   Drive: Drive won't store a service account's uploads in a My Drive ("Service
   Accounts do not have storage quota"), and the panel says so if the folder is

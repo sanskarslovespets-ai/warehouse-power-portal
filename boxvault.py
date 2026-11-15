@@ -13,12 +13,14 @@ import re
 import threading
 import traceback
 
+import box_usage
 import google_services
 import invoice_entries
 import invoice_pdf
 
 # The warehouses an invoice can be for, in dropdown order: {ERP warehouse code: what the dropdown shows}.
-# Each is kept under its ERP code (the Drive folder, Invoice Entry, cp_database_N's from_warehouse);
+# Each is kept under its ERP code (the Drive folder, Invoice Entry; the ERP's delivery notes have it as
+# custom_mother_warehouse, which box_usage.py counts SKU used by);
 # WH_Delhi_002, the name the team uses for Gurgaon, is MWH_Ggn_bhajgera_001 in the ERP.
 WAREHOUSES = {
     "MWH_Blr_Neelmangla_002": "MWH_Blr_Neelmangla_002",
@@ -196,8 +198,20 @@ def _enter(invoice, reason, warehouse, name, link, by):
 
 
 def entries():
-    """Invoice Entry for the page: every line, with the name the dropdown gives its warehouse."""
+    """Invoice Entry for the page: {"rows": every line, with the name the dropdown gives its warehouse and its SKU
+    used / SKU left (box_usage.py), "usage_problem": why those are missing, or None}.
+
+    The lines come from scm and the usage from the ERP, so if the ERP can't be read the lines are still listed.
+    """
     rows = invoice_entries.rows()
     for row in rows:
         row["warehouse_name"] = WAREHOUSES.get(row["warehouse"], row["warehouse"])
-    return rows
+    problem = None
+    try:
+        box_usage.add(rows)
+    except Exception:
+        traceback.print_exc()
+        for row in rows:
+            row["used"] = row["left"] = None
+        problem = "Couldn't read the ERP's delivery notes, so SKU used and SKU left show \"—\". Reload to try again."
+    return {"rows": rows, "usage_problem": problem}

@@ -1075,6 +1075,7 @@
         </section>
 
         <div class="pend-cards" id="bv-cards"></div>
+        <div id="bv-usage-problem" class="banner error hidden" role="status"></div>
 
         <section class="panel">
           <div class="phead"><h3>Invoice Entry</h3><span class="pnote" id="bv-shown"></span></div>
@@ -1089,6 +1090,8 @@
               <th title="Amount before tax, plus tax">Total amount</th>
               <th class="ct-left">Invoice date</th>
               <th class="ct-left">Invoice</th>
+              <th title="Completed ERP delivery notes from this warehouse carrying this SKU since the invoice date (1 delivery note = 1 box)">SKU used</th>
+              <th title="Quantity minus SKU used">SKU left</th>
             </tr></thead>
             <tbody id="bv-rows"></tbody>
           </table></div>
@@ -1098,6 +1101,8 @@
           One row per line item of each uploaded PDF invoice, for the warehouse chosen when it was uploaded. The invoice number opens the PDF in Google Drive.
           An invoice is read only if its lines add up to its Sub Total and, with tax, to its Total; one already here isn't added (or uploaded) again.
           <strong>Total amount</strong> = the line's amount before tax plus its tax (IGST, or CGST and SGST).
+          <strong>SKU used</strong> = the ERP's completed delivery notes (not returns) from the invoice's warehouse that carry the box's SKU, dated on or after the invoice date: one delivery note is one box.
+          <strong>SKU left</strong> = Quantity minus SKU used. When a warehouse has more than one invoice for a SKU, boxes count against the oldest invoice first, so none is counted twice.
         </footer>
       </div>
     </div>

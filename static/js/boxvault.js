@@ -6,7 +6,8 @@
   //   go to /api/boxvault/invoices, which puts them in Google Drive in that warehouse's folder and reads each PDF
   //   invoice's line items into Invoice Entry.
   // - Invoice Entry: those line items (/api/boxvault/entries), filtered and totalled here; editors can take an
-  //   invoice out (uploaded for the wrong warehouse, say), which leaves its PDF in Drive.
+  //   invoice out (uploaded for the wrong warehouse, say), which leaves its PDF in Drive. SKU used / SKU left come
+  //   with them, counted from the ERP's delivery notes (box_usage.py).
   // The dropdown, the file types and the limits come from /api/boxvault, the first time the panel is opened.
 
   const $ = (id) => document.getElementById(id);
@@ -15,6 +16,7 @@
   const stateEl = $("bv-state");
   const stateText = $("bv-state-text");
   const body = $("bv-body");
+  const usageProblem = $("bv-usage-problem");
   const whFilter = $("bv-f-wh");
   const search = $("bv-f-q");
   const overlay = $("bv-modal");
@@ -33,7 +35,7 @@
   let opened = false;
 
   const CSV_COLUMNS = ["Warehouse", "Item & description", "SKU", "Quantity", "Tax %", "Tax amount", "Total amount",
-    "Invoice date", "Invoice", "Amount before tax", "Rate", "HSN", "Supplier", "Uploaded by"];
+    "Invoice date", "Invoice", "SKU used", "SKU left", "Amount before tax", "Rate", "HSN", "Supplier", "Uploaded by"];
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -111,7 +113,10 @@
 
   async function loadEntries() {
     try {
-      rows = (await getJson("/api/boxvault/entries")).rows;
+      const data = await getJson("/api/boxvault/entries");
+      rows = data.rows;
+      usageProblem.textContent = data.usage_problem || "";
+      usageProblem.classList.toggle("hidden", !data.usage_problem);
     } catch (err) {
       stateEl.hidden = false;
       body.hidden = true;
@@ -188,7 +193,9 @@
         el("td", "num", money(r.tax_amount)),
         el("td", "num", money(r.total)),
         el("td", "ct-left", day(r.invoice_date)),
-        invoiceCell
+        invoiceCell,
+        el("td", r.used == null ? "num bv-na" : "num", r.used == null ? "—" : qty(r.used)),
+        el("td", r.left == null ? "num bv-na" : r.left < 0 ? "num bv-over" : "num", r.left == null ? "—" : qty(r.left))
       );
       return tr;
     }));
@@ -211,7 +218,8 @@
     window.RtoCsv.download("boxvault_invoice_entry", CSV_COLUMNS, matching().map((r) => ({
       "Warehouse": r.warehouse, "Item & description": r.description, "SKU": r.sku, "Quantity": r.qty,
       "Tax %": r.tax_pct, "Tax amount": r.tax_amount, "Total amount": r.total, "Invoice date": r.invoice_date,
-      "Invoice": r.invoice_number, "Amount before tax": r.amount, "Rate": r.rate, "HSN": r.hsn, "Supplier": r.supplier, "Uploaded by": r.uploaded_by,
+      "Invoice": r.invoice_number, "SKU used": r.used == null ? "" : r.used, "SKU left": r.left == null ? "" : r.left,
+      "Amount before tax": r.amount, "Rate": r.rate, "HSN": r.hsn, "Supplier": r.supplier, "Uploaded by": r.uploaded_by,
     })));
   });
   whFilter.addEventListener("change", render);
