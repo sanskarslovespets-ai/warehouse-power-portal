@@ -13,6 +13,8 @@ HEAD = [
     "1", "DEALBERG TECHNOLOGIES PVT LTD", "Company ID :  U51909KA2016PTC093363", "Bangalore Karnataka 560102",
     "GSTIN 29AAFCD7015E1ZT", "TAX INVOICE", " Invoice# INV-20262642", "  Invoice Date : 01/10/2026",
     "  Terms : Net 30", "Bill To Ship To", "Supertails- Pets Centric Private Limited", "GSTIN 06AALCP9335K2ZU",
+    "Supertails-Pets Centric Private Limited, PLOT NO 186, VPO BAJGHERA", "BAJGHERA,", "Gurugram", "122017 Haryana",
+    "India",
 ]
 
 
@@ -32,7 +34,9 @@ def test_an_out_of_state_invoice_with_igst():
         IGST_HEADER, ["Sub Total 10,076.00", "IGST5 (5%) 503.80", "Total 10,579.80", "Balance Due 10,579.80"]))
     assert {k: v for k, v in found.items() if k != "lines"} == {
         "invoice_number": "INV-20262642", "invoice_date": date(2026, 10, 1), "supplier": "DEALBERG TECHNOLOGIES PVT LTD",
-        "supplier_gstin": "29AAFCD7015E1ZT", "sub_total": Decimal("10076.00"), "total": Decimal("10579.80")}
+        "supplier_gstin": "29AAFCD7015E1ZT",
+        "ship_to": "Supertails-Pets Centric Private Limited, PLOT NO 186, VPO BAJGHERA, BAJGHERA, Gurugram, 122017 Haryana, India",
+        "sub_total": Decimal("10076.00"), "total": Decimal("10579.80")}
     assert found["lines"] == [{
         "line": 1, "description": "DEL Supertails 15*15*15 Printed 5 Ply carton box", "sku": "DBSUPTDEL006",
         "hsn": "481910", "qty": Decimal("916.00"), "rate": Decimal("11.00"), "tax_pct": Decimal("5"),
@@ -86,3 +90,17 @@ def test_a_long_sku_that_wrapped_is_put_back_together():
 def test_anything_it_cant_read_with_confidence_is_refused_saying_why(pdf, says):
     with pytest.raises(invoice_pdf.NotReadable, match=says):
         invoice_pdf.read(pdf)
+
+
+def test_the_ship_to_address_is_read_and_not_the_bill_to():
+    # Bhiwandi invoices are often billed to the Karnataka office: the Bill To block ends with its GSTIN line
+    head = [*HEAD[:9], "Bill To Ship To", "Supertails- Pets Centric Private Limited", "Supertails, Koramangala,",
+            "Bangalore", "560034 Karnataka", "India", "GSTIN 29AALCP9335K1ZN",
+            "Ground floor K D Logistics Park 3 Building no. N2 Bhawale Bhiwandi", "Kalyan", "Mumbai",
+            "421302 Maharashtra", "India"]
+    found = invoice_pdf.read(invoice(
+        ["1 DEL Supertails 15*15*15 Printed 5 Ply ", " carton box", " DBSUPTDEL006",
+         "481910 916.00 11.00 5% 503.80 10,076.00"],
+        IGST_HEADER, ["Sub Total 10,076.00", "IGST5 (5%) 503.80", "Total 10,579.80"], head=head))
+    assert found["ship_to"] == ("Ground floor K D Logistics Park 3 Building no. N2 Bhawale Bhiwandi, Kalyan, Mumbai, "
+                                "421302 Maharashtra, India")

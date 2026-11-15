@@ -2,13 +2,13 @@
   "use strict";
 
   // Warehouse Dashboards > BoxVault (boxvault.py).
-  // - Upload invoices: pick a warehouse, add one or more invoice files (choosing again adds to the list), and they
-  //   go to /api/boxvault/invoices, which puts them in Google Drive in that warehouse's folder and reads each PDF
-  //   invoice's line items into Invoice Entry.
+  // - Upload invoices: add one or more invoice files (choosing again adds to the list), and they go to
+  //   /api/boxvault/invoices, which reads each PDF invoice's warehouse from its Ship To address, puts the file in
+  //   Google Drive in that warehouse's folder ("Unsorted" if none was read) and its line items in Invoice Entry.
   // - Invoice Entry: those line items (/api/boxvault/entries), filtered and totalled here; editors can take an
-  //   invoice out (uploaded for the wrong warehouse, say), which leaves its PDF in Drive. SKU used / SKU left come
+  //   invoice out (a cancelled one, say), which leaves its PDF in Drive. SKU used / SKU left come
   //   with them, counted from the ERP's delivery notes (box_usage.py).
-  // The dropdown, the file types and the limits come from /api/boxvault, the first time the panel is opened.
+  // The warehouses (the filter), the file types and the limits come from /api/boxvault, the first time the panel is opened.
 
   const $ = (id) => document.getElementById(id);
   const uploadBtn = $("bv-upload");
@@ -22,7 +22,6 @@
   const overlay = $("bv-modal");
   const form = $("bv-form");
   const formError = $("bv-form-error");
-  const select = $("bv-warehouse");
   const fileInput = $("bv-files");
   const fileList = $("bv-file-list");
   const submitBtn = $("bv-submit");
@@ -101,11 +100,10 @@
       stateText.textContent = "Couldn't load BoxVault: " + err.message;
       return;
     }
-    select.replaceChildren(new Option("Choose a warehouse", ""), ...settings.warehouses.map((w) => new Option(w.name, w.id)));
     whFilter.replaceChildren(new Option("All warehouses", ""), ...settings.warehouses.map((w) => new Option(w.name, w.id)));
     fileInput.accept = settings.extensions.join(",");
     $("bv-files-hint").textContent =
-      `PDFs, images or spreadsheets, up to ${settings.max_files} files. PDF invoices are read into Invoice Entry. Choose files again to add more to the list.`;
+      `PDFs, images or spreadsheets, up to ${settings.max_files} files. Each PDF invoice goes into Invoice Entry under the warehouse in its Ship To address, so one upload can cover several warehouses. Choose files again to add more to the list.`;
     uploadBtn.disabled = !settings.ready;
     uploadBtn.title = settings.ready ? "" : "Invoice uploads aren't set up on this server yet";
     await loadEntries();
@@ -131,7 +129,7 @@
       return "Invoice uploads aren't set up on this server yet: it needs a Google Drive folder for them (DRIVE_INVOICE_FOLDER_ID). Ask an admin.";
     }
     if (access.role === "viewer") return "No invoices yet. Editors add them with Upload invoices.";
-    return "No invoices yet. Choose Upload invoices, pick the warehouse and add the supplier's PDF invoices: each line item appears here.";
+    return "No invoices yet. Choose Upload invoices and add the supplier's PDF invoices: each line item appears here, under the warehouse in its Ship To address.";
   }
 
   function matching() {
@@ -232,12 +230,15 @@
     const lines = [];
     if (added.length) {
       const n = added.reduce((t, f) => t + f.entry.lines, 0);
-      lines.push(`Added ${added.length} invoice${added.length === 1 ? "" : "s"} (${n} line${n === 1 ? "" : "s"}) to Invoice Entry: ${added.map((f) => f.entry.invoice).join(", ")}.`);
+      const byWarehouse = new Map();
+      added.forEach((f) => byWarehouse.set(f.warehouse, [...(byWarehouse.get(f.warehouse) || []), f.entry.invoice]));
+      lines.push(`Added ${added.length} invoice${added.length === 1 ? "" : "s"} (${n} line${n === 1 ? "" : "s"}) to Invoice Entry:`);
+      byWarehouse.forEach((invoices, wh) => lines.push(`${warehouseName(wh)}: ${invoices.join(", ")}`));
     }
     if (already.length) {
       lines.push(`Already in Invoice Entry, so not added or uploaded again: ${already.map((f) => f.entry.invoice).join(", ")}.`);
     }
-    notRead.forEach((f) => lines.push(`${f.file} is saved in Drive but not in Invoice Entry: ${f.entry.reason}.`));
+    notRead.forEach((f) => lines.push(`${f.file} is saved in Drive${f.warehouse ? "" : " (in Unsorted)"} but not in Invoice Entry: ${f.entry.reason}.`));
     notSaved.forEach((f) => lines.push(`${f.file} (${f.entry.invoice}) is saved in Drive, but its lines couldn't be saved to Invoice Entry. Upload it again to retry.`));
     const kind = notSaved.length ? "error" : notRead.length || !added.length ? "info" : "success";
     return { lines, kind };
@@ -268,12 +269,11 @@
   function openForm() {
     if (!settings || !settings.ready) return;
     chosen = [];
-    select.value = "";
     fileInput.value = "";
     formError.classList.add("hidden");
     renderFiles();
     overlay.classList.remove("hidden");
-    select.focus();
+    fileInput.focus();
   }
 
   function closeForm() {
@@ -283,7 +283,7 @@
 
   function setBusy(busy) {
     uploading = busy;
-    [select, fileInput, submitBtn, $("bv-cancel"), $("bv-close"), ...fileList.querySelectorAll("button")].forEach((c) => {
+    [fileInput, submitBtn, $("bv-cancel"), $("bv-close"), ...fileList.querySelectorAll("button")].forEach((c) => {
       c.disabled = busy;
     });
     if (busy) submitBtn.textContent = chosen.length > 1 ? `Uploading ${chosen.length} files…` : "Uploading…";
@@ -311,9 +311,7 @@
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const warehouse = select.value;
     const total = chosen.reduce((sum, f) => sum + f.size, 0);
-    if (!warehouse) return showFormError("Choose a warehouse.");
     if (!chosen.length) return showFormError("Add at least one invoice file.");
     if (chosen.length > settings.max_files) return showFormError(`Upload at most ${settings.max_files} files at a time.`);
     if (total > settings.max_total_bytes) {
@@ -321,7 +319,6 @@
     }
 
     const data = new FormData();
-    data.append("warehouse", warehouse);
     chosen.forEach((file) => data.append("files", file, file.name));
     formError.classList.add("hidden");
     setBusy(true);
@@ -337,7 +334,7 @@
     const files = answer.files || [];
     if (files.length) {
       const { lines, kind } = outcome(files);
-      showBanner([`${warehouseName(warehouse)}:`, ...lines], kind);
+      showBanner(lines, kind);
       loadEntries();
     }
     if (res && res.ok) {

@@ -7,7 +7,9 @@ The PDF has a text layer, so this reads that text; no OCR. Each line item comes 
      DBSUPTDEL006                                 <- the SKU
     481910 916.00 11.00 5% 503.80 10,076.00       <- HSN, qty, rate, then a % and an amount per tax, then the amount
 
-with one tax (IGST, out of state) or two (CGST and SGST, in Karnataka, where Dealberg is). An invoice is only
+with one tax (IGST, out of state) or two (CGST and SGST, in Karnataka, where Dealberg is). The Ship To address
+(which warehouse the boxes went to) comes out too: the PDF's text has the Bill To block, ending in its GSTIN
+line, then the Ship To block, which has none, before the item table. An invoice is only
 returned if its lines add up to its Sub Total and, with tax, to its Total; otherwise it can't be trusted and
 NotReadable says why, so nothing half-read is ever stored.
 """
@@ -30,6 +32,8 @@ PART = re.compile(r"^[A-Z0-9_-]+$")
 ITEM_START = re.compile(r"^\d{1,3}\s+(?=\S)")
 TABLE_START = re.compile(r"^Amount\s*%")  # the item table's header ends "Amount% Amt" (or "Amount% Amt % Amt")
 TABLE_END = re.compile(r"^(Total In Words|Sub Total)\b")
+ADDRESSES_START = re.compile(r"^Bill To\b")  # "Bill To Ship To"
+ADDRESSES_END = re.compile(r"^#\s*Item\b")  # the item table's header, "# Item & Description ..."
 ROUNDING = Decimal("0.05")  # how far the stated totals may be from the lines' sums
 
 
@@ -46,6 +50,21 @@ def _field(pattern, text, what):
     if not found:
         raise NotReadable(f"no {what} found")
     return found.group(1).strip()
+
+
+def _ship_to(text):
+    """The Ship To address, its lines joined with ", " ("" if there's no Bill To / Ship To block). The Bill To
+    block comes first and ends with its GSTIN line; when the two are the same, either is the warehouse's."""
+    lines = [ln.strip() for ln in text.splitlines()]
+    start = next((i for i, ln in enumerate(lines) if ADDRESSES_START.match(ln)), None)
+    if start is None:
+        return ""
+    end = next((i for i in range(start + 1, len(lines)) if ADDRESSES_END.match(lines[i])), len(lines))
+    block = [ln for ln in lines[start + 1:end] if ln]
+    gstins = [i for i, ln in enumerate(block) if ln.startswith("GSTIN")]
+    if gstins:
+        block = block[gstins[-1] + 1:]
+    return ", ".join(" ".join(ln.split()).rstrip(",") for ln in block)
 
 
 def _lines(text):
@@ -101,8 +120,8 @@ def _lines(text):
 
 
 def read(data):
-    """The invoice in `data` (a PDF's bytes): {invoice_number, invoice_date, supplier, supplier_gstin, sub_total,
-    total, lines}. Raises NotReadable for anything else (a scan, another layout, totals that don't add up)."""
+    """The invoice in `data` (a PDF's bytes): {invoice_number, invoice_date, supplier, supplier_gstin, ship_to,
+    sub_total, total, lines}. Raises NotReadable for anything else (a scan, another layout, totals that don't add up)."""
     try:
         reader = PdfReader(io.BytesIO(data))
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
@@ -129,4 +148,4 @@ def read(data):
     if abs(sum(ln["total"] for ln in lines) - total) > ROUNDING:
         raise NotReadable(f"the line items and tax don't add up to the Total ({total})")
     return {"invoice_number": number, "invoice_date": date, "supplier": supplier, "supplier_gstin": supplier_gstin,
-            "sub_total": sub_total, "total": total, "lines": lines}
+            "ship_to": _ship_to(text), "sub_total": sub_total, "total": total, "lines": lines}

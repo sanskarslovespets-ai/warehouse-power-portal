@@ -1098,7 +1098,7 @@
         </section>
 
         <footer class="note">
-          One row per line item of each uploaded PDF invoice, for the warehouse chosen when it was uploaded. The invoice number opens the PDF in Google Drive.
+          One row per line item of each uploaded PDF invoice, under the warehouse its Ship To address names (by the warehouse's pincode, or the city). The invoice number opens the PDF in Google Drive.
           An invoice is read only if its lines add up to its Sub Total and, with tax, to its Total; one already here isn't added (or uploaded) again.
           <strong>Total amount</strong> = the line's amount before tax plus its tax (IGST, or CGST and SGST).
           <strong>SKU used</strong> = the ERP's completed delivery notes (not returns) from the invoice's warehouse that carry the box's SKU, dated on or after the invoice date: one delivery note is one box.
@@ -1640,13 +1640,6 @@
       </div>
       <form id="bv-form" class="modal-body" novalidate>
         <div id="bv-form-error" class="form-error hidden"></div>
-
-        <div class="form-row">
-          <label for="bv-warehouse">Warehouse</label>
-          <select id="bv-warehouse" required>
-            <option value="">Choose a warehouse</option>
-          </select>
-        </div>
 
         <div class="form-row">
           <label for="bv-files">Invoice files</label>

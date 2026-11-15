@@ -302,9 +302,10 @@ Users page as "Warehouse Exceptions".
 
 ### Warehouse Dashboards → BoxVault
 
-**Upload invoices**: choose a warehouse, add one or more invoice files, and they
-are saved to Google Drive; each supplier PDF invoice's line items are read into
-the **Invoice Entry** tab. Given to people on the Users page as "BoxVault";
+**Upload invoices**: add one or more invoice files and they are saved to Google
+Drive; each supplier PDF invoice's line items are read into the **Invoice
+Entry** tab, under the warehouse its Ship To address names (there's no warehouse
+to choose, so one upload can cover several warehouses). Given to people on the Users page as "BoxVault";
 editors and admins can upload (and take an invoice out of Invoice Entry),
 viewers only see it.
 
@@ -312,12 +313,22 @@ viewers only see it.
   MWH_Blr_Neelmangla_002, MWH_Chn_Kovur_001, MWH_Hyd_Manikonda_001,
   MWH_Kol_Dankuni_001, MWH_Mum_Bhiwandi_002, MWH_Pun_Khed_001 and WH_Delhi_002.
   Each is stored under its ERP code; WH_Delhi_002 is `MWH_Ggn_bhajgera_001`.
+- **Which warehouse:** `boxvault.warehouse_for()` reads the invoice's Ship To
+  address (not the Bill To: Bhiwandi invoices are often billed to the Karnataka
+  office). A warehouse's own pincode decides first (`PINCODES`, from its address
+  in the ERP's `tabAddress`), else a city or place name in the address
+  (`CITIES`), which covers the supplier's other addresses: Bhiwandi invoices to
+  the old Bhiwandi_001 premises (same pincode) and a Kolkata one to Pamasree,
+  700060. All 72 October 2026 invoices land where the team had filed them. An
+  invoice whose address matches no warehouse (or two) isn't entered; its file
+  goes to Drive's `Unsorted` folder and the upload says why.
 - **Files:** PDFs, images (jpg, png, webp, heic) and spreadsheets (xlsx, xls,
   csv); up to 20 per upload, 500 MB in all. Choosing files again adds to the
   list; anything else is refused before anything is sent.
 - **Where they go:** the Drive folder `DRIVE_INVOICE_FOLDER_ID`, inside a folder
   per warehouse named by its ERP code, made the first time that warehouse gets
-  an invoice. Each file keeps the name it was uploaded with (characters other
+  an invoice; files no warehouse could be read from (photos, spreadsheets, other
+  layouts, unmatched addresses) go in `Unsorted`. Each file keeps the name it was uploaded with (characters other
   than letters, digits, spaces and `. _ - ( ) &` become `_`), and its Drive
   description says who uploaded it.
 - **Invoice Entry:** one row per line item: warehouse, item & description, SKU,
@@ -333,8 +344,8 @@ viewers only see it.
   first invoice saved, like `warehouse_user_access`; the database account needs
   CREATE for that, then SELECT, INSERT and DELETE. An invoice is known by its
   supplier's GSTIN and number, so one already entered is neither entered nor
-  uploaded again; Remove takes one out (its PDF stays in Drive) so it can be
-  uploaded again, for the right warehouse say.
+  uploaded again; Remove takes one out (its PDF stays in Drive), a cancelled
+  invoice say, and it can be uploaded again.
 - **SKU used / SKU left** (`box_usage.py`): counted from the ERP (`DN_DB_*`)
   each time Invoice Entry loads. SKU used = completed delivery notes (`status =
   'Completed'`, `is_return = 0`) from the invoice's warehouse

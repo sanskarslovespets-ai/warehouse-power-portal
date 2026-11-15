@@ -788,22 +788,18 @@ def boxvault_settings():
 
 
 @app.post("/api/boxvault/invoices", status_code=201)
-def boxvault_upload(
-    request: Request,
-    warehouse: Annotated[str, Form()] = "",
-    files: Annotated[list[UploadFile] | None, File()] = None,
-):
+def boxvault_upload(request: Request, files: Annotated[list[UploadFile] | None, File()] = None):
+    """Each file's warehouse is read from the invoice itself (boxvault.warehouse_for)."""
     try:
-        done = boxvault.upload(warehouse, files or [], by=_access(request).username)
+        done = boxvault.upload(files or [], by=_access(request).username)
     except boxvault.Refused as e:
         raise HTTPException(400, str(e))
     except (boxvault.NotSetUp, google_services.GoogleNotConnected) as e:
         raise HTTPException(503, str(e))
     except boxvault.PartlyFailed as e:
         # what did go through too, so the page can say so and offer only the rest again
-        return JSONResponse({"error": str(e), "warehouse": warehouse, "files": e.files, "failed": e.failed},
-                            status_code=502)
-    return {"warehouse": warehouse, "files": done}
+        return JSONResponse({"error": str(e), "files": e.files, "failed": e.failed}, status_code=502)
+    return {"files": done}
 
 
 @app.get("/api/boxvault/entries")
@@ -818,7 +814,7 @@ def boxvault_entries():
 
 @app.delete("/api/boxvault/entries")
 def boxvault_remove(supplier_gstin: str = "", invoice_number: str = ""):
-    """Takes one invoice's lines out of Invoice Entry (e.g. uploaded for the wrong warehouse); its PDF stays in Drive."""
+    """Takes one invoice's lines out of Invoice Entry (e.g. a cancelled one); its PDF stays in Drive."""
     try:
         removed = invoice_entries.remove(supplier_gstin, invoice_number)
     except Exception:
