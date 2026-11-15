@@ -36,6 +36,10 @@
       </div>
       <!-- Filled by static/js/session.js from /api/me. -->
       <div class="topbar-account">
+        <button type="button" id="btn-help" class="topbar-btn" aria-label="Help for this page" title="Help for the page you're on">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.9"/><path d="M12 17.2h.01"/></svg>
+          <span class="topbar-btn-label">Help</span>
+        </button>
         <span id="signed-in-as" class="topbar-user" hidden></span>
         <button type="button" id="btn-sign-out" class="topbar-btn" aria-label="Sign out" title="Sign out">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
@@ -160,6 +164,23 @@
               <button class="side-nav-item" data-panel="users" type="button">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.6 3.4 8.3 8 9 4.6-.7 8-4.4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
                 Users &amp; access
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Everyone: static/js/session.js leaves [data-always] items showing, whatever tabs someone has. -->
+        <div class="nav-group open" data-group="help">
+          <button type="button" class="nav-group-toggle" aria-expanded="true" aria-controls="nav-group-help">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.9"/><path d="M12 17.2h.01"/></svg>
+            <span class="nav-group-name">Help</span>
+            <svg class="nav-group-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="nav-group-items" id="nav-group-help">
+            <div class="nav-group-inner">
+              <button class="side-nav-item" data-panel="help" data-always type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M8 7h8M8 11h6"/></svg>
+                Help &amp; FAQs
               </button>
             </div>
           </div>
@@ -1521,6 +1542,619 @@
       </div>
     </div>
 
+    <!-- Help (static/js/help.js): how each panel works, what its numbers mean, and common questions. A section with
+         data-panel shows only to people who can open that panel (or any of several, space-separated); one without it
+         shows to everyone. data-group puts
+         it under that heading in the topics list, built from the sections. Keep labels exactly as the page shows them. -->
+    <div id="panel-help" class="side-panel">
+      <h2 class="panel-title">Help &amp; FAQs</h2>
+      <p class="help-intro">How each part of the portal works, what its numbers mean, and answers to common questions. You'll see the panels you have access to. The <strong>Help</strong> button at the top opens the help for the page you're on.</p>
+      <div class="help-layout">
+        <nav class="help-toc" aria-label="Help topics">
+          <input type="search" id="help-search" class="help-search" placeholder="Search help" aria-label="Search help">
+          <div id="help-toc-list"></div>
+        </nav>
+        <div class="help-body" id="help-body">
+          <p id="help-no-results" class="help-empty" hidden>Nothing in Help matches that. Try another word, or ask an admin.</p>
+          <!-- help sections -->
+          <section class="help-section" id="help-start" data-group="Getting started">
+            <h3>Signing in and finding your way</h3>
+            <p class="help-lead">The portal brings the warehouse's RTO, breach and warehouse dashboards together in one place. You only see the tabs you've been given.</p>
+            <h4>Signing in</h4>
+            <ul>
+              <li>Use the username and password your admin gave you. The username isn't case-sensitive; the password is (a "Caps Lock is on" warning appears if it's on).</li>
+              <li>A wrong username and a wrong password give the same message, on purpose.</li>
+              <li>After 5 wrong tries in 15 minutes, that username is locked for 15 minutes: <span class="ui">Too many wrong attempts. Please wait 15 minutes and try again.</span></li>
+            </ul>
+            <h4>Staying signed in</h4>
+            <ul>
+              <li>A sign-in lasts 12 hours and renews itself while you use the portal. If you stop using it, you're signed out 6 to 12 hours later.</li>
+              <li>You're also signed out by <span class="ui">Sign out</span>, or within about a minute if an admin changes your password or removes your account. You'll see <span class="ui">You were signed out. Please sign in again to carry on.</span></li>
+            </ul>
+            <h4>The sidebar</h4>
+            <p>Tabs are grouped into <strong>RTO</strong>, <strong>Breach Explorer</strong> and <strong>Warehouse Dashboards</strong>. Click a group's name to fold it away. The ☰ button at the top left hides the whole sidebar. Admins also see <strong>Users</strong>. <strong>Help</strong> is there for everyone.</p>
+            <h4>Common questions</h4>
+            <details><summary>I forgot my password.</summary>
+              <p>There's no self-service reset. Ask your warehouse admin: they set a new password on the Users page and pass it on to you.</p></details>
+            <details><summary>I can't see a tab that a colleague can.</summary>
+              <p>It hasn't been ticked for you. Ask an admin to give you that tab on the Users page, then reload the page. If you have no tabs at all, you'll see <span class="ui">No tabs yet</span>.</p></details>
+          </section>
+
+          <section class="help-section" id="help-roles" data-group="Getting started">
+            <h3>Viewers, editors and admins</h3>
+            <p class="help-lead">Each person has one role, plus the tabs ticked for them.</p>
+            <dl>
+              <dt class="ui">Viewer</dt><dd>Can look at their tabs and download from them (Export / Download CSV), but can't change anything. Buttons that change data or refresh it are hidden, not greyed out.</dd>
+              <dt class="ui">Editor</dt><dd>Everything a viewer can do, plus changing data in their tabs (adding entries, uploading invoices, removing an invoice) and the <span class="ui">Refresh from DB</span> and <span class="ui">Refresh data</span> buttons.</dd>
+              <dt class="ui">Admin</dt><dd>Every tab, plus <span class="ui">Users &amp; access</span>, where people and their access are managed.</dd>
+            </dl>
+            <details><summary>What does "Your access to the … tab is view-only" mean?</summary>
+              <p>You tried to change something in a tab where you're a viewer. Ask an admin to make you an editor if you need to.</p></details>
+            <details><summary>Why is a button greyed out?</summary>
+              <p>Usually because a refresh is already running (the button says <span class="ui">Refreshing…</span>). It comes back when the refresh finishes.</p></details>
+          </section>
+
+          <section class="help-section" id="help-refresh" data-group="Getting started">
+            <h3>How fresh the data is</h3>
+            <p class="help-lead">Most dashboards are a copy of the systems' data, refreshed on a schedule, so pages open fast. The top bar says how fresh yours is.</p>
+            <h4>The schedule</h4>
+            <ul>
+              <li>Everything refreshes every day at <strong>09:00 IST</strong>; the new data is usually in by about 9:10. If the server was asleep at 9:00, the first visit afterwards catches up.</li>
+              <li><strong>Control Tower</strong> also rebuilds every 30 minutes, and <strong>BoxVault</strong> reloads every hour while it's open.</li>
+              <li>An open page checks for new data every 5 minutes and updates itself, so you don't need to reload.</li>
+            </ul>
+            <h4>The top bar</h4>
+            <dl>
+              <dt class="ui">Data as of … · Next auto-refresh …</dt><dd>When the oldest of the data behind <em>your</em> tabs was fetched, and when the next scheduled refresh is. Hover it to see each source's time and any problem.</dd>
+              <dt class="ui">Refreshing from the database…</dt><dd>A refresh is running. Pages update by themselves when it's done.</dd>
+              <dt class="ui help-editors">Refresh from DB</dt><dd>Re-pulls all the data behind your tabs now. It takes a few minutes. If everything was refreshed in the last 10 minutes it says so and doesn't run again.</dd>
+              <dt class="ui">Help</dt><dd>Opens this page at the help for the tab you're on.</dd>
+            </dl>
+            <details><summary>Why does the top bar show an earlier time than the tab I'm on?</summary>
+              <p>The top bar shows the oldest of all your tabs' data. A tab that refreshes more often (like Control Tower) can be newer.</p></details>
+            <details><summary>"This data was refreshed a few minutes ago" — why won't it refresh?</summary>
+              <p>Someone refreshed it within the last 10 minutes. Refreshes are spaced out so the source systems aren't overloaded; try again a little later.</p></details>
+          </section>
+          <section class="help-section" id="help-rto-analytics" data-panel="rto-analytics" data-group="RTO">
+            <h3>RTO Analytics <span class="help-tag">RTO</span></h3>
+            <p class="help-lead">Charts and headline numbers for the other four RTO panels, one sub-tab each: <span class="ui">RTO Process</span>, <span class="ui">RTO Status</span>, <span class="ui">RTO MDND</span> and <span class="ui">RTO Reconciliation</span>. It only shows data; nothing can be changed here.</p>
+            <h4>Where the data comes from</h4>
+            <ul>
+              <li><strong>RTO Process</strong> uses the entries logged in the Process panel, live: a new entry shows straight away.</li>
+              <li>The other three use the same data as their panels, refreshed daily at 09:00. Each shows <span class="ui">Data as of …</span> (with "· refreshing…" while a refresh runs). Their <span class="ui">Refresh</span> button re-reads the latest saved copy; it doesn't query the databases.</li>
+            </ul>
+            <h4>Controls (the same on every sub-tab)</h4>
+            <dl>
+              <dt>Date range</dt><dd><span class="ui">Today</span>, <span class="ui">Last 7 days</span>, <span class="ui">Last 30 days</span>, <span class="ui">Last 90 days</span>, <span class="ui">Month to date</span>, <span class="ui">All time</span>, or your own <span class="ui">From</span>/<span class="ui">To</span> with <span class="ui">Apply range</span>. Every sub-tab opens on Last 30 days, except RTO Reconciliation (All time).</dd>
+              <dt class="ui">By:</dt><dd>Which date the range and the charts use (for example damage marked date or received date).</dd>
+              <dt>Dropdowns</dt><dd>Narrow by damage type, facility, courier, warehouse and so on. <span class="ui">Clear filters</span> appears once one is set. Clicking a bar sets that filter too; click it again to clear it.</dd>
+              <dt class="ui">Download CSV</dt><dd>The rows behind the charts, with your filters applied.</dd>
+              <dt>Charts</dt><dd>Bar charts show the top 8 and put the rest in "Other"; cross-tables show the top 12. Most cards have <span class="ui">Table view</span>. Trends group by day up to 60 days, by week up to 2 years, and by month beyond that.</dd>
+            </dl>
+            <h4>RTO Process sub-tab</h4>
+            <dl>
+              <dt class="ui">Total entries, Distinct AWBs, Distinct SKUs</dt><dd>Counts of damage entries logged.</dd>
+              <dt class="ui">Avg days to receive</dt><dd>Damage marked to RTO/RPU received (entries received before they were marked are left out).</dd>
+              <dt class="ui">Damage logged rate</dt><dd>The share of RTO-Delivered AWBs in the range that have an entry logged. It matches by AWB against RTO Status data and always uses the RTO delivery date, so it ignores the damage type filter and the By: choice.</dd>
+              <dt class="ui">Repeat AWBs</dt><dd>AWBs logged more than once.</dd>
+              <dt>Cards</dt><dd>Entries over time (by damage type, and by facility), Damage type, Facility, Courier, SKU, Facility × damage type, Days to receive, Damage logged rate by facility or courier, and Data checks (AWBs logged more than once; entries received before the damage was marked).</dd>
+            </dl>
+            <h4>RTO Status sub-tab</h4>
+            <dl>
+              <dt class="ui">RTO delivered</dt><dd>AWBs the courier reports as RTO-Delivered.</dd>
+              <dt class="ui">ERP completed</dt><dd>The share whose latest ERP delivery note is Return Completed.</dd>
+              <dt class="ui">Not yet completed, No Delivery Note</dt><dd>The rest, and those with no delivery note at all.</dd>
+              <dt class="ui">Avg days in transit</dt><dd>Pickup to RTO delivered.</dd>
+              <dt>Cards</dt><dd>Trends by ERP status and by return name, ERP status, Return name, Courier, Return city, Latest courier remark, Days in transit, Courier × ERP status, and Data checks (delivered 7+ days ago but still not Return Completed).</dd>
+            </dl>
+            <h4>RTO MDND sub-tab</h4>
+            <dl>
+              <dt class="ui">AWBs received, Net value</dt><dd>Returned AWBs and their value (₹ in lakh/crore; hover for the exact amount).</dd>
+              <dt class="ui">Checked, Pending check, Pending value</dt><dd>Checked means <span class="ui">Received at WH?</span> has been filled in on the MDND panel.</dd>
+              <dt class="ui">Damaged on receipt</dt><dd>"Received and Damaged", or Condition = Damaged.</dd>
+              <dt>Cards</dt><dd>Received over time, Checked vs pending, a <span class="ui">Warehouse scorecard</span> (click a row to filter), Courier, RTO reason, Days to receipt, Received at WH?, Condition, Checked by, Drop city, and Data checks (received 7+ days ago and still not checked; AWBs with discrepancy notes).</dd>
+            </dl>
+            <h4>RTO Reconciliation sub-tab</h4>
+            <dl>
+              <dt class="ui">Stuck AWBs, Avg days pending, Oldest, 30+ days</dt><dd>Returns still "RTO-InTransit" 10+ days after the RTO was marked, and how long they've been stuck.</dd>
+              <dt class="ui">ERP shows completed, No ERP status</dt><dd>Where the ERP disagrees with the courier, or has no delivery note.</dd>
+              <dt>Cards</dt><dd>Trends by courier and ERP status, How long they have been stuck, Courier × age, and Data checks (ERP says Return Completed but the courier still says in transit; 30+ days with no delivery note; a delivery date but still in transit).</dd>
+            </dl>
+            <h4>Common questions</h4>
+            <details><summary>"No entries match these filters" — but there is data.</summary>
+              <p>The range is probably too narrow: most sub-tabs open on Last 30 days. Widen the range or clear a filter.</p></details>
+            <details><summary>Why don't the numbers match the panel itself?</summary>
+              <p>The panels show all dates by default, while Analytics opens on the last 30 days and can count by a different date (the <span class="ui">By:</span> dropdown).</p></details>
+            <details><summary>Why does MDND count AWBs as "Checked" that nobody checked?</summary>
+              <p>AWBs logged in the Process form are filled in automatically as "Received and Damaged", which counts as checked.</p></details>
+            <details><summary>A red banner says the last database refresh reported a problem.</summary>
+              <p>The latest refresh failed, so you're seeing the last good data (usually the previous day's). It will try again at the next refresh.</p></details>
+            <details><summary>"…being fetched from the database for the first time."</summary>
+              <p>That only happens on the very first load after the server starts. The page updates by itself.</p></details>
+          </section>
+
+          <section class="help-section" id="help-rto-process" data-panel="rto-process" data-group="RTO">
+            <h3>RTO Process <span class="help-tag">RTO</span></h3>
+            <p class="help-lead">Where damaged returns are logged (RTO, RPU, WH Damage and Inward Damage), each with a POD and a video. The table lists every entry logged so far, newest first.</p>
+            <h4>Where the data comes from</h4>
+            <ul>
+              <li>Entries are saved in the portal, and each one is also copied to the team's Google Sheet (<span class="ui">Go to sheet</span> opens it). POD and video files go to Google Drive (<span class="ui">View</span> opens them).</li>
+              <li>The Facility, Courier, SKU and AWB suggestions come from the shipment data, refreshed at most every 3 hours.</li>
+              <li>The list reloads each time you open the panel or press <span class="ui">Refresh</span>.</li>
+            </ul>
+            <h4 class="help-editors">Logging an entry</h4>
+            <ul>
+              <li>Click <span class="ui">+ New Entry</span> and fill in <span class="ui">Date (Damage marked)</span>, <span class="ui">Date (RTO/RPU received)</span>, <span class="ui">Facility Name</span>, <span class="ui">Damage Type</span>, <span class="ui">AWB Code</span>, <span class="ui">SKU Code</span>, the POD (image or PDF), the video and <span class="ui">Courier Name</span>. Only <span class="ui">Remarks</span> is optional (up to 2,000 characters).</li>
+              <li>Each file must be under 500 MB. Click <span class="ui">Save Entry</span>; you'll see "Entry saved."</li>
+              <li>The AWB must exist in the shipment data; it's checked when you save.</li>
+              <li>Entries can't be edited or deleted from the page.</li>
+            </ul>
+            <h4>The list</h4>
+            <dl>
+              <dt>Filters</dt><dd>Search (AWB, SKU, facility, courier, remarks), damage type, facility, courier, sync status, and <span class="ui">From</span>/<span class="ui">To</span> on the damage marked date. <span class="ui">Clear filters</span> resets them.</dd>
+              <dt>Columns</dt><dd><span class="ui">Damage Marked</span>, <span class="ui">RTO/RPU Received</span>, <span class="ui">Facility</span>, <span class="ui">Damage Type</span>, <span class="ui">AWB Code</span>, <span class="ui">SKU Code</span>, <span class="ui">POD</span>/<span class="ui">Video</span>, <span class="ui">Courier</span>, <span class="ui">Remarks</span>, <span class="ui">Sheet</span> and <span class="ui">Logged At</span> (when it was saved).</dd>
+              <dt class="ui">Sheet</dt><dd><strong>Synced</strong>: it's in the Google Sheet. <strong>Pending</strong>: saved in the portal but not yet copied to the sheet.</dd>
+              <dt class="ui">Download CSV</dt><dd>The entries matching your filters.</dd>
+            </dl>
+            <h4>Common questions</h4>
+            <details><summary>It says the AWB was not found.</summary>
+              <p>The AWB has to be in the shipment data. Check it for typos. A very new shipment may not be there yet.</p></details>
+            <details><summary>My AWB isn't in the suggestions.</summary>
+              <p>The suggestions can be up to 3 hours old and show at most 50 matches. Type the full AWB: it's still checked live when you save.</p></details>
+            <details><summary>An entry shows "Pending".</summary>
+              <p>It's saved, but copying it to the Google Sheet failed. An editor can press <span class="ui">Sync to Google Sheet</span>, which appears while any entry is pending.</p></details>
+            <details><summary>"Upload to Google Drive failed", or a banner about the Google account not being connected.</summary>
+              <p>The entry was <strong>not</strong> saved. Try again; if it keeps happening, tell an admin.</p></details>
+            <details><summary>"No entries yet" — but I know there are entries.</summary>
+              <p>Your filters match none of them. Press <span class="ui">Clear filters</span>.</p></details>
+          </section>
+
+          <section class="help-section" id="help-rto-status" data-panel="rto-status" data-group="RTO">
+            <h3>RTO Status <span class="help-tag">RTO</span></h3>
+            <p class="help-lead">Every return the courier reports as RTO-Delivered, with the ERP's latest delivery note status next to it, so you can see whether the ERP has caught up.</p>
+            <h4>Where the data comes from</h4>
+            <ul>
+              <li>Courier tracking data for shipments picked up from the seven mother warehouses (Gurgaon, Bangalore, Mumbai, Pune, Kolkata, Chennai and Hyderabad). The status is the latest ERP delivery note.</li>
+              <li>Refreshed daily at 09:00. <span class="help-editors">Editors can press <span class="ui">Refresh from DB</span> (about 5 minutes).</span> The page shows <span class="ui">Data as of …</span>.</li>
+            </ul>
+            <h4>What you'll see</h4>
+            <dl>
+              <dt>Tiles</dt><dd><span class="ui">Distinct AWBs</span>, <span class="ui">Rows</span>, <span class="ui">Return names</span>, and one tile per ERP status (for example "Return Completed" or "(No status)"). Click a status tile to filter; click again to clear.</dd>
+              <dt>Filters</dt><dd>Search (AWB, courier, facility, city, remark, status), return name, status, and <span class="ui">RTO Delivery From</span>/<span class="ui">To</span>. <span class="ui">Download CSV</span> saves every matching row; <span class="ui">Load more</span> shows 200 more.</dd>
+              <dt class="ui">Status</dt><dd>Green: Return Completed / Completed. Amber: Return Issued, Return Initiated, To Bill, AWB Registered. Red: Cancel, AWB Cancelled. "-": no delivery note.</dd>
+              <dt>Other columns</dt><dd><span class="ui">AWB</span>, <span class="ui">Courier Partner</span>, <span class="ui">Return Name</span>, <span class="ui">RTO Delivery Date</span>, <span class="ui">Created At</span>, <span class="ui">Pickup Date</span>, <span class="ui">Latest Remark</span> (the courier's) and <span class="ui">Return City</span>. Newest delivery first.</dd>
+            </dl>
+            <h4>Common questions</h4>
+            <details><summary>Rows disappear when I set dates.</summary>
+              <p>Rows with no RTO delivery date drop out once a date range is set.</p></details>
+            <details><summary>The status looks out of date.</summary>
+              <p>Statuses only change at the 09:00 refresh or after Refresh from DB.</p></details>
+            <details><summary>Refresh from DB did nothing.</summary>
+              <p>It was already run in the last 10 minutes. While it's running the button says <span class="ui">Refreshing…</span>.</p></details>
+            <details><summary>"Last refresh failed… Showing previously cached data."</summary>
+              <p>The latest refresh didn't work, so you're seeing the previous data. It tries again at the next refresh.</p></details>
+            <details><summary>Why are the counts different from Analytics → RTO Status?</summary>
+              <p>Analytics opens on the last 30 days and can count by pickup or created date instead of delivery date.</p></details>
+          </section>
+
+          <section class="help-section" id="help-rto-mdnd" data-panel="rto-mdnd" data-group="RTO">
+            <h3>RTO MDND <span class="help-tag">RTO</span></h3>
+            <p class="help-lead">A checklist, warehouse by warehouse, of returned AWBs that have a value in the ERP. Staff record whether each one physically arrived and what condition it was in.</p>
+            <h4>Which AWBs are listed</h4>
+            <ul>
+              <li>AWBs the courier reports as RTO-Delivered in the last 60 days (and not before 1 Sep 2026), from the seven warehouses, excluding Delhivery Reverse, and with a net value above ₹0 in the ERP.</li>
+              <li>The list refreshes daily at 09:00, or with <span class="ui">Refresh from DB</span>. What staff type in is saved straight away and kept separately, so a refresh never wipes it.</li>
+            </ul>
+            <h4>Layout</h4>
+            <dl>
+              <dt>Warehouse tabs</dt><dd><span class="ui">Gurgaon</span>, <span class="ui">Bangalore</span>, <span class="ui">Mumbai</span>, <span class="ui">Kolkata</span>, <span class="ui">Chennai</span>, <span class="ui">Pune</span>, <span class="ui">Hyderabad</span>, each with its count.</dd>
+              <dt>Filters</dt><dd><span class="ui">All entries</span> / <span class="ui">Not filled</span> / <span class="ui">Filled</span> (filled means Received at WH? has a value), courier, reason, Received at WH?, condition ("(Blank)" picks empty ones), and date ranges. They apply to the open warehouse only.</dd>
+              <dt>From the data</dt><dd><span class="ui">AWB</span>, <span class="ui">Received On</span> (RTO delivery date), <span class="ui">Marked On</span> (RTO mark date), <span class="ui">Days to Receipt</span>, <span class="ui">Courier</span>, <span class="ui">Warehouse</span>, <span class="ui">Order ID</span>, <span class="ui">Drop City</span>, <span class="ui">RTO Reason</span> (the courier's reason for the last failed delivery) and <span class="ui">Net Value</span> (₹ total of the AWB's delivery notes).</dd>
+              <dt class="help-editors">Filled in by staff</dt><dd><span class="ui">Received at WH?</span> (Yes / No / Received and Damaged), <span class="ui">Received Date</span>, <span class="ui">Condition</span> (Good / Damaged), <span class="ui">Discrepancy Notes</span>, <span class="ui">Checked By</span>, and <span class="ui">Date Updated</span> (set to today when anything changes; you can edit it). Each change saves by itself; there's no Save button.</dd>
+            </dl>
+            <p><span class="ui">Download CSV</span> saves this warehouse's filtered rows, including what's been typed in. <span class="ui">Load more</span> shows 500 more.</p>
+            <h4>Common questions</h4>
+            <details><summary>Received at WH? and Received Date are locked on some rows.</summary>
+              <p>That AWB was logged in the RTO Process form, so they're filled in as "Received and Damaged" automatically.</p></details>
+            <details><summary>A row I filled in still shows under "Not filled".</summary>
+              <p>The list only re-filters when you change a filter. Switch the filter and back.</p></details>
+            <details><summary>An AWB I expected is missing.</summary>
+              <p>It's outside the list's scope: delivered back more than 60 days ago, no value in the ERP, Delhivery Reverse, or from another warehouse.</p></details>
+            <details><summary>"Could not save: …"</summary>
+              <p>That change wasn't stored and the field is marked. Try again.</p></details>
+            <details><summary>I can't type in the boxes.</summary>
+              <p>You have view-only access to MDND. Ask an admin for editor access.</p></details>
+          </section>
+
+          <section class="help-section" id="help-rto-recon" data-panel="rto-recon" data-group="RTO">
+            <h3>RTO Reconciliation <span class="help-tag">RTO</span></h3>
+            <p class="help-lead">Returns the courier still shows as "RTO-InTransit" 10 or more days after the RTO was marked, with the ERP's latest delivery note status, so stuck returns can be chased.</p>
+            <h4>Where the data comes from</h4>
+            <ul>
+              <li>Courier tracking data (from every warehouse, not just the seven), with the ERP's latest delivery note status.</li>
+              <li>Refreshed daily at 09:00, or with <span class="ui">Refresh from DB</span>. Between refreshes, newly stuck AWBs get their ERP status looked up about once an hour.</li>
+            </ul>
+            <h4>What you'll see</h4>
+            <dl>
+              <dt>Filters</dt><dd>Search (AWB, reference number, pincode), courier, return name, ERP status, age (<span class="ui">Pending 10-14 days</span> up to 180+), and a date range by RTO mark date, created date or pickup date. Each dropdown shows counts under the other filters.</dd>
+              <dt class="ui">RTO Date Diff</dt><dd>Days from the RTO mark to today, or to the RTO delivery date if there is one.</dd>
+              <dt class="ui">ERP Status</dt><dd>The latest delivery note's status in the ERP.</dd>
+              <dt>Other columns</dt><dd><span class="ui">Status</span> (always RTO-InTransit), <span class="ui">Courier Partner</span>, <span class="ui">AWB</span>, <span class="ui">Return Name</span>, <span class="ui">Created At</span>, <span class="ui">Pickup Date</span>, <span class="ui">Reference Number</span>, pickup and drop pincodes, <span class="ui">RTO Mark Date</span> and <span class="ui">RTO Delivery Date</span>. Longest-pending first.</dd>
+            </dl>
+            <p><span class="ui">Download CSV</span> saves exactly the filtered rows; <span class="ui">Load more</span> shows 200 more.</p>
+            <h4>Common questions</h4>
+            <details><summary>ERP Status is blank.</summary>
+              <p>Either there's no delivery note, or the lookup for a newly stuck AWB hasn't run yet (it runs about hourly). A failed lookup is said in a note at the top.</p></details>
+            <details><summary>The ERP says Return Completed but the courier says in transit.</summary>
+              <p>The two systems disagree. These are worth chasing with the courier; Analytics → RTO Reconciliation lists them under Data checks.</p></details>
+            <details><summary>An AWB has an RTO Delivery Date but is still listed.</summary>
+              <p>The courier's status hasn't moved on from RTO-InTransit.</p></details>
+            <details><summary>An AWB stuck for 8 days isn't listed.</summary>
+              <p>Only AWBs at 10 or more days are included.</p></details>
+            <details><summary>The dropdown counts don't add up to the total.</summary>
+              <p>Each dropdown counts AWBs under the other filters, ignoring its own.</p></details>
+          </section>
+          <section class="help-section" id="help-breach-explorer" data-panel="be-breach be-pendency be-complaints be-rto be-connection be-radofd" data-group="Breach Explorer">
+            <h3>How the Breach Explorer tabs work</h3>
+            <p class="help-lead">The six Breach Explorer tabs show how couriers keep their delivery promises. They're the SLA Breach Explorer, inside the portal. These points apply to all of them.</p>
+            <ul>
+              <li><strong>Data:</strong> built from the courier tracking data (ClickPost); Complaints also uses CX tickets, and Complaints and RTO also use ERP delivery notes. Each tab's data is built once a day at the 09:00 refresh (one tab after another, 5–10 minutes in all). Filters then work instantly in your browser.</li>
+              <li><strong>Freshness:</strong> <span class="ui">Data as of …</span> at the top right, in your computer's time. During a refresh it says <span class="ui">Refreshing…</span> or <span class="ui">Refresh queued after …</span>, and the tab updates by itself when it's done.</li>
+              <li class="help-editors"><strong>Refresh data</strong> re-builds just that tab. If its data is under 10 minutes old it tells you when you can refresh again; if other tabs are refreshing, it waits its turn.</li>
+              <li><strong>If a refresh fails</strong>, the tab keeps its previous data and shows a red banner. A failure of the morning refresh is retried automatically; one later in the day isn't, so press Refresh data again or wait for the next morning.</li>
+              <li><strong>Pickers</strong> show "All" until you tick something, with <span class="ui">Select all</span> / <span class="ui">Clear</span>, and a search box for long lists. <span class="ui">Reset all</span> clears the tab's filters. Click a column heading to sort. "·" in a cell means zero or not applicable. Weight slabs are 0-3kg, 3+kg and unknown.</li>
+              <li>Delhivery Reverse shipments are left out of Breach analysis, Pendency, Complaints (delivered counts) and RTO.</li>
+            </ul>
+          </section>
+
+          <section class="help-section" id="help-be-breach" data-panel="be-breach" data-group="Breach Explorer">
+            <h3>Breach analysis <span class="help-tag">Breach Explorer</span></h3>
+            <p class="help-lead">Of the shipments delivered in your chosen dates, how many arrived after the promised delivery date (a breach), on the day, or early, by day, promise type, courier and lane.</p>
+            <h4>Data</h4>
+            <p>Shipments delivered over about the last 3½ months, by delivery date. Promise dates are filled in a day or two late, so the latest dates are provisional.</p>
+            <h4>Controls</h4>
+            <dl>
+              <dt class="ui">Dates</dt><dd>Quick ranges (<span class="ui">7 days</span>, <span class="ui">14 days</span>, <span class="ui">This month</span>, <span class="ui">Last month</span>, <span class="ui">Last month TD</span>, <span class="ui">2 months ago TD</span>, <span class="ui">All data</span>) or your own dates. They count back from the latest delivery in the data, not from today; "TD" means up to the same day of the month. Opens on 7 days.</dd>
+              <dt class="ui">Basis · all views</dt><dd><span class="ui">Delivered basis</span> or <span class="ui">RAD basis</span> (see the questions below).</dd>
+              <dt class="ui">Filter</dt><dd>Courier, Account (narrows to the chosen couriers), Weight, Promise type, Warehouse, Destination, and <span class="ui">Metros</span> (ticks the seven metro cities).</dd>
+              <dt class="ui">Both / Counts / %</dt><dd>On every table: show counts, percentages, or both.</dd>
+            </dl>
+            <h4>Tables and columns</h4>
+            <dl>
+              <dt>Tables</dt><dd><span class="ui">Overall performance</span> (both bases side by side), <span class="ui">Day on day</span>, <span class="ui">By promise type</span>, <span class="ui">By courier</span> and <span class="ui">By lane</span> (pickup city → destination city, top 60). By courier and By lane have their own pickers that only affect that table.</dd>
+              <dt class="ui">Delivered</dt><dd>Shipments delivered in the range, including those with no promise date.</dd>
+              <dt class="ui">Under promise D1 / D2 / D3+</dt><dd>Delivered 1, 2 or 3+ days before the promise date (only promises of whole days can be early).</dd>
+              <dt class="ui">Day 0</dt><dd>Delivered on the promise date, or within the promised time for a promise shorter than a day.</dd>
+              <dt class="ui">Breach D1 / D2 / D3+</dt><dd>Delivered after the promise, by calendar days late. A short promise missed on the same day counts as D1.</dd>
+              <dt class="ui">NA</dt><dd>No promise date recorded. % columns divide by Delivered, so NA stays in the base.</dd>
+              <dt class="ui">Breach %</dt><dd>Flagged at 6% (warning) and 12% (critical).</dd>
+              <dt class="ui">Share, P2D, EDD</dt><dd>The row's share of all breaches in the table; average days from pickup to delivery; average promise length in days.</dd>
+            </dl>
+            <p><span class="ui">Export CSV</span> on By lane saves every lane matching the filters (not just the 60 shown), in the selected basis.</p>
+            <h4>Common questions</h4>
+            <details><summary>Why does Breach % change when I switch basis?</summary>
+              <p>Only promises shorter than a day are judged differently. <span class="ui">Delivered basis</span> uses the delivery scan; <span class="ui">RAD basis</span> uses when the rider first reached the customer (or 5 minutes before the delivery scan if that time is missing). Whole-day promises are judged the same either way.</p></details>
+            <details><summary>Why don't Under promise + Day 0 + Breach add up to Delivered?</summary>
+              <p>Shipments with no promise date are counted under NA.</p></details>
+            <details><summary>I can't find my city.</summary>
+              <p>Destinations outside the top 130 by volume are grouped as "Other", and By lane shows only the top 60. Export CSV has every lane.</p></details>
+            <details><summary>Yesterday's numbers changed today.</summary>
+              <p>Promise dates are filled in a day or two late, and the data refreshes at 09:00, so recent days settle over a couple of days.</p></details>
+          </section>
+
+          <section class="help-section" id="help-be-pendency" data-panel="be-pendency" data-group="Breach Explorer">
+            <h3>Pendency <span class="help-tag">Breach Explorer</span></h3>
+            <p class="help-lead">A snapshot of shipments still on their way that are already past their promise, or due today or tomorrow, to chase with couriers.</p>
+            <h4>Data</h4>
+            <p>One snapshot, taken at 09:00 or when someone presses Refresh data (<span class="ui">Snapshot as of … IST</span>). It covers forward shipments created in the last 60 days. Left out: finished shipments (Delivered, RTO-Delivered, Cancelled, Lost, Damaged, NotServiceable), anything on its way back (RTO), and shipments with no promise date.</p>
+            <h4>What you'll see</h4>
+            <dl>
+              <dt class="ui">Filter</dt><dd>Courier, Account, Weight, Warehouse, Status, Destination, and <span class="ui">Promise</span> from/to (by promise date).</dd>
+              <dt class="ui">Breached &amp; open</dt><dd>Past the promise and not finished.</dd>
+              <dt class="ui">Due today, Due tomorrow</dt><dd>The promise falls today, or tomorrow.</dd>
+              <dt class="ui">8+ days late</dt><dd>Probably stuck; worth a sweep.</dd>
+              <dt>Tables</dt><dd><span class="ui">By courier</span>, <span class="ui">By warehouse</span>, <span class="ui">By current status</span> (where open shipments are sitting) and <span class="ui">By lane</span> (top 40), sorted by Breached.</dd>
+              <dt class="ui">D1, D2, D3-7, D8+</dt><dd>Calendar days past the promise date (D1 includes ones that went late today).</dd>
+              <dt class="ui">Total open</dt><dd>Breached + Due today + Due tomorrow only, not every open shipment.</dd>
+              <dt class="ui">Export CSV</dt><dd>One row per shipment, ready to send to a courier, following the filter row. Free-text remarks are left out because they can hold customer details.</dd>
+            </dl>
+            <h4>Common questions</h4>
+            <details><summary>Something under "Due today" is already late.</summary>
+              <p>The snapshot doesn't update during the day. Check the <span class="ui">Snapshot as of</span> time.</p></details>
+            <details><summary>My shipment isn't here.</summary>
+              <p>It may be on its way back (RTO), finished, missing a promise date, older than 60 days, or not due until after tomorrow.</p></details>
+            <details><summary>The CSV row count doesn't match the table.</summary>
+              <p>The pickers inside By current status don't apply to the CSV, and the CSV comes from a separate pull made just before the summary, so a few shipments can differ.</p></details>
+          </section>
+
+          <section class="help-section" id="help-be-complaints" data-panel="be-complaints" data-group="Breach Explorer">
+            <h3>Complaints <span class="help-tag">Breach Explorer</span></h3>
+            <p class="help-lead">Customer complaint tickets about delivery (last-mile) faults, per courier and per sub-issue, measured against how many shipments each courier delivered.</p>
+            <h4>Data</h4>
+            <p>CX tickets created in the last 180 days, matched to a courier through the shipment's AWB (or the ERP delivery note when the ticket has a DN number). Only delivery-fault issues are included (cancellation, delay, failed attempts, MDND, damage and expiry); missing and wrong items are packing faults and are left out, so this isn't total complaint volume.</p>
+            <h4>What you'll see</h4>
+            <dl>
+              <dt>Filters</dt><dd><span class="ui">Created</span> from/to, Category, Issue, Sub-issue (each narrows the next), Courier, Channel and ticket Status.</dd>
+              <dt>Tiles</dt><dd><span class="ui">Tickets</span>, <span class="ui">Delayed / not moving</span>, <span class="ui">Failed attempt</span>, <span class="ui">MDND</span>, <span class="ui">Damaged / expired</span> and <span class="ui">Cancellation</span>, each with its share of all tickets.</dd>
+              <dt class="ui">Fake attempt by courier</dt><dd>Always "Fake Attempt (Nobody Came)" tickets, whatever the issue filters: tickets, deliveries, <span class="ui">Rate</span> (tickets ÷ that courier's deliveries) and <span class="ui">Per 1,000</span>.</dd>
+              <dt class="ui">By sub-issue</dt><dd>Tickets, rate, per 1,000 and <span class="ui">Resolved %</span>. Its own Courier picker overrides the main one for this table.</dd>
+              <dt class="ui">By courier</dt><dd>Tickets against delivered volume for the same dates, following every filter.</dd>
+            </dl>
+            <h4>Common questions</h4>
+            <details><summary>What is "(blank)"?</summary>
+              <p>A real empty value in the ticket data: many tickets have no category, issue or sub-issue filled in.</p></details>
+            <details><summary>What is "Unmapped"?</summary>
+              <p>Tickets that couldn't be matched to a courier (usually the AWB field holds free text). They're left out of the rates.</p></details>
+            <details><summary>Why is the fake-attempt rate "a floor"?</summary>
+              <p>Unmapped tickets are missing from the count but every delivery is in the base, so each courier's true rate is somewhat higher.</p></details>
+            <details><summary>Why doesn't one day's rate line up?</summary>
+              <p>Tickets count on the day they were raised, deliveries on the day they were delivered.</p></details>
+          </section>
+
+          <section class="help-section" id="help-be-rto" data-panel="be-rto" data-group="Breach Explorer">
+            <h3>RTO <span class="help-tag">Breach Explorer</span></h3>
+            <p class="help-lead">Of the shipments that reached a final outcome, how many came back to origin (RTO), what they were worth, and what has physically reached the warehouse.</p>
+            <h4>How it counts</h4>
+            <p>The last 100 days. Each shipment is counted once, on its outcome date: the RTO mark date if it came back, or the delivery date if it didn't. <strong>RTO % = RTOs marked ÷ (RTOs marked + delivered).</strong> Shipments still in transit, cancelled, lost or damaged are left out.</p>
+            <h4>What you'll see</h4>
+            <dl>
+              <dt>Filters</dt><dd><span class="ui">RTO marked / delivered</span> from/to, Courier, Weight, Destination, RTO status, Payment, and Air / surface.</dd>
+              <dt class="ui">Terminal, RTO, RTO rate</dt><dd>RTO marked + delivered; RTOs marked in the range; RTO ÷ terminal.</dd>
+              <dt class="ui">Back at origin</dt><dd>RTOs that have arrived back (RTO-Delivered), as a share of RTOs.</dd>
+              <dt class="ui">RTO value</dt><dd>The value of returned shipments, as a share of what was shipped.</dd>
+              <dt class="ui">Avg days to mark</dt><dd>Shipment creation to the RTO flag.</dd>
+              <dt>Tables</dt><dd><span class="ui">By courier</span> (with an <span class="ui">Attempts</span> picker), <span class="ui">RTO value by courier</span> (ClickPost invoice value with tax, and ERP net value before tax), <span class="ui">By destination</span>, <span class="ui">Day on day</span>, <span class="ui">Returns received at warehouse</span> (on the date the parcel arrived back; own Warehouse and Courier pickers) and <span class="ui">RTO status mix</span> (where returns currently sit).</dd>
+            </dl>
+            <h4>Common questions</h4>
+            <details><summary>Why don't the warehouse receipts match the RTO counts?</summary>
+              <p>Receipts are counted on the day the parcel arrived back, typically about 4 days after the RTO was marked.</p></details>
+            <details><summary>Why did the RTO rate jump to 100%?</summary>
+              <p>Picking an RTO status keeps only RTO shipments.</p></details>
+            <details><summary>Why is net value lower than gross by more than the tax?</summary>
+              <p>AWBs with no matching ERP delivery note add nothing to net value.</p></details>
+            <details><summary>"By destination" says top 50 by volume, but shows small destinations.</summary>
+              <p>It opens sorted by RTO %, so you see the 50 destinations with the highest RTO %. Click <span class="ui">Terminal</span> to see the 50 biggest by volume.</p></details>
+          </section>
+
+          <section class="help-section" id="help-be-connection" data-panel="be-connection" data-group="Breach Explorer">
+            <h3>Connection view <span class="help-tag">Breach Explorer</span></h3>
+            <p class="help-lead">Whether Bluedart and Delhivery shipments from the mother warehouses left the origin hub on a line-haul connection by 08:00 the morning after pickup.</p>
+            <h4>What you'll see</h4>
+            <dl>
+              <dt>Data</dt><dd>Pickups in the last 60 days from the mother warehouses. Filters: <span class="ui">Pickup date</span>, Courier, Warehouse, Account, Weight.</dd>
+              <dt>Tables</dt><dd><span class="ui">Connection by pickup date</span> (newest first; rows are "provisional" until 08:00 two days after pickup), <span class="ui">By courier</span> and <span class="ui">By warehouse</span>.</dd>
+              <dt class="ui">Day 1</dt><dd>Left the hub by 08:00 the day after pickup: on time.</dd>
+              <dt class="ui">Day 2</dt><dd>By 08:00 two days after pickup: a day late.</dd>
+              <dt class="ui">Day 3+, Not connected</dt><dd>Later than that; no hub-out scan at all.</dd>
+              <dt class="ui">Day 1 %, By day 2 %, By day 3+ %</dt><dd>Cumulative shares of all shipments.</dd>
+              <dt class="ui">Export CSV</dt><dd>One row per shipment, read live from the database when you click (up to 92 days and 200,000 rows; at most two such exports run at once across everyone).</dd>
+            </dl>
+            <h4>Common questions</h4>
+            <details><summary>Why does today look bad?</summary>
+              <p>It's provisional: the 08:00 deadline hasn't passed yet.</p></details>
+            <details><summary>Why is "By day 3+ %" below 100%?</summary>
+              <p>The gap is the Not connected share.</p></details>
+            <details><summary>Why only two couriers?</summary>
+              <p>Same-city couriers don't run a line-haul connection.</p></details>
+            <details><summary>Why doesn't the CSV match the table?</summary>
+              <p>The CSV is live; the table is from the last refresh.</p></details>
+          </section>
+
+          <section class="help-section" id="help-be-radofd" data-panel="be-radofd" data-group="Breach Explorer">
+            <h3>RAD to OFD <span class="help-tag">Breach Explorer</span></h3>
+            <p class="help-lead">How fast shipments go out for delivery after reaching the destination hub, by arrival date, destination city and destination hub.</p>
+            <h4>What you'll see</h4>
+            <dl>
+              <dt>Data</dt><dd>Arrivals in the last 30 days, Bluedart and Delhivery, from the seven mother warehouses. Filters: <span class="ui">Reached destination</span>, Courier, Warehouse, Account, Weight.</dd>
+              <dt>Tables</dt><dd><span class="ui">By arrival date</span>, <span class="ui">By destination city</span> and <span class="ui">By destination hub</span> (each courier's own hub for the pincode). City and hub tables show the top 50 by volume, with "Other…", "Unmapped" and "Unknown" last; <span class="ui">Total (all rows)</span> covers the hidden rows too.</dd>
+              <dt class="ui">Same day, Next day, D+2 or later</dt><dd>Out for delivery on the arrival date, the next day, or later (calendar days).</dd>
+              <dt class="ui">No OFD</dt><dd>No out-for-delivery scan yet.</dd>
+              <dt class="ui">Export CSV</dt><dd>Works like Connection view's, with the same limits.</dd>
+            </dl>
+            <h4>Common questions</h4>
+            <details><summary>Is "RAD" here the same as Breach analysis's RAD basis?</summary>
+              <p>No. Here it means arriving at the destination hub; in Breach analysis it means the rider reaching the customer's door.</p></details>
+            <details><summary>Why do the latest days show lots of No OFD?</summary>
+              <p>Shipments that arrived today haven't gone out yet. (Unlike Connection view, these rows aren't marked provisional.)</p></details>
+            <details><summary>Why doesn't the Total match the rows I can see?</summary>
+              <p>The table shows the top 50 rows; the total covers all of them.</p></details>
+          </section>
+          <section class="help-section" id="help-control-tower" data-panel="control-tower" data-group="Warehouse Dashboards">
+            <h3>Control Tower <span class="help-tag">Warehouse Dashboards</span></h3>
+            <p class="help-lead">Shows, warehouse by warehouse, which orders are waiting to be picked, waiting for an AWB, or waiting for courier pickup, against the day each should leave. It's the old Control Tower Google Sheet, built straight from the systems.</p>
+            <h4>Where the data comes from</h4>
+            <ul>
+              <li>Delivery notes (DNs) from the ERP, AWB status from ClickPost, and cutoff days from the promise engine. Only DNs created <strong>today and the 6 days before</strong> are included.</li>
+              <li>It rebuilds every 30 minutes (and at 09:00). The header shows <span class="ui">Data as of … · updates every 30 min</span>, and the line under it says how many DNs, AWBs and promises it was built from.</li>
+              <li class="help-editors"><span class="ui">Refresh data</span> re-reads everything now. It can't run again within 10 minutes (that limit is shared with the top bar's Refresh from DB).</li>
+            </ul>
+            <h4>The ideal pickup date</h4>
+            <p>The day a parcel should leave: the order day plus the cutoff days the promise engine gave that order at that warehouse. If the promise engine gave none, it's the same day for orders placed before noon and the next day otherwise (the <strong>noon rule</strong>). A blue note appears if the promise engine couldn't be reached and every date used the noon rule.</p>
+            <h4>Dashboard view</h4>
+            <dl>
+              <dt class="ui">Filters</dt><dd><span class="ui">Type</span> (WH, DS, Dropship, Offline, Other), <span class="ui">Facility</span>, <span class="ui">Courier</span>, <span class="ui">Channel</span>. <span class="ui">Reset all</span> goes back to WH + DS.</dd>
+              <dt class="ui">Picking pendency, AWB not generated, Pickup pendency, Hyperlocal dispatch pendency</dt><dd>The big number is DNs due today or earlier; the small line is how many are due later. Click a card to show that measure in the table.</dd>
+              <dt class="ui">Warehouse pendency</dt><dd>Mother-warehouse DNs that are due and have no AWB yet. Click it to open the Warehouse Pendency view.</dd>
+              <dt class="ui">Picking</dt><dd>DNs in To Be Picked or Under Picking.</dd>
+              <dt class="ui">AWB not generated</dt><dd>Hold, To Be Picked, Under Picking or Picked.</dd>
+              <dt class="ui">Pickup pending</dt><dd>Not yet handed to the courier. <span class="ui">Hyperlocal</span> is the same, for hyperlocal (HLD) partners.</dd>
+              <dt class="ui">By status</dt><dd>Pick any status from the dropdown.</dd>
+              <dt class="ui">Facility table</dt><dd><span class="ui">Earlier</span>, one column per day up to <span class="ui">Today</span>, <span class="ui">Due by today</span> (their sum), <span class="ui">Due later</span>, and a <span class="ui">Total</span> row. <span class="ui">Download CSV</span> saves it.</dd>
+              <dt class="ui">By order date</dt><dd><span class="ui">DNs created</span>, <span class="ui">Unfulfilled WH</span>, <span class="ui">On hold</span>, and shipped DNs with no promise-engine EDD (count and share). This table always covers every facility and ignores the filters.</dd>
+            </dl>
+            <h4>Warehouse Pendency view</h4>
+            <dl>
+              <dt>What's listed</dt><dd>Mother-warehouse (MWH) DNs with no AWB that are still in To Be Picked, Under Picking, Item Picked or Packed.</dd>
+              <dt class="ui">Filters</dt><dd><span class="ui">Warehouse</span>, <span class="ui">Status</span>, <span class="ui">Courier</span>, <span class="ui">Channel</span>, a search box (order, DN or pick list), <span class="ui">Show not yet due</span>, <span class="ui">Export CSV</span> and <span class="ui">Reset all</span>.</dd>
+              <dt class="ui">Cards</dt><dd><span class="ui">Pending DNs</span>, <span class="ui">Overdue</span>, <span class="ui">Due today</span>, <span class="ui">Oldest due</span> (days late) and <span class="ui">Not yet due</span>.</dd>
+              <dt class="ui">By warehouse</dt><dd>DN counts per status, plus Overdue, Due today and Total.</dd>
+              <dt class="ui">DNs</dt><dd>One row per order on a DN. <span class="ui">Days late</span> shows "today", "N d" (red from 2 days) or "due in N d". Only the first 500 rows show; Export CSV has them all.</dd>
+            </dl>
+            <h4>Common questions</h4>
+            <details><summary>Why isn't an old stuck DN listed?</summary>
+              <p>Control Tower only covers DNs created in the last 7 days. Use Warehouse Exceptions → <span class="ui">Packing pendency</span> for older ones.</p></details>
+            <details><summary>Why doesn't this match Warehouse Exceptions' Packing pendency?</summary>
+              <p>They count differently:</p>
+              <ul>
+                <li>Control Tower also counts Item Picked and Packed DNs with no AWB.</li>
+                <li>It only covers 7 days.</li>
+                <li>Its due dates come from promise-engine cutoffs (or the noon rule), where Exceptions uses a 14:00 cutoff.</li>
+              </ul></details>
+            <details><summary>Why does the DNs table have more rows than Pending DNs?</summary>
+              <p>The table has a row per order, and a DN can carry several orders. The cards count DNs.</p></details>
+            <details><summary>Where are the dropship facilities?</summary>
+              <p>The Type filter starts on WH and DS. Add Dropship there.</p></details>
+            <details><summary>Why didn't "By order date" change when I filtered?</summary>
+              <p>That table always covers every facility, on purpose.</p></details>
+          </section>
+
+          <section class="help-section" id="help-warehouse-exceptions" data-panel="warehouse-exceptions" data-group="Warehouse Dashboards">
+            <h3>Warehouse Exceptions <span class="help-tag">Warehouse Dashboards</span></h3>
+            <p class="help-lead">The mother warehouses' problem queues: stock that couldn't be found, open picking, putback and RTO returns, and customer complaints traced back to the warehouse that shipped. In the sidebar it's called <strong>Exceptions</strong>.</p>
+            <h4>Where the data comes from</h4>
+            <ul>
+              <li>The ERP and the complaints / ClickPost data. Not found and Complaints cover about the last 16 weeks; the pendency views are a snapshot taken at the last refresh (<span class="ui">Pendency as of … IST</span>).</li>
+              <li>It refreshes at 09:00, with the top bar's Refresh from DB, or with <span class="ui">Refresh data</span> on the page (editors and admins; about 2 minutes). It doesn't refresh by itself during the day.</li>
+              <li>If one part of a refresh fails, the page keeps the previous data and shows a red banner.</li>
+            </ul>
+            <h4>Views</h4>
+            <dl>
+              <dt class="ui">Not found</dt><dd>Stock the packer couldn't find, moved to the suspense bin. Pick a range (<span class="ui">7 days</span>, <span class="ui">30 days</span>, <span class="ui">90 days</span>, <span class="ui">All</span>, or dates). The Warehouse table shows <span class="ui">Total DNs</span>, <span class="ui">Unique DNs</span> (DNs with at least one item not found), <span class="ui">Qty not found</span>, <span class="ui">% of DNs</span> and <span class="ui">Cancellation caused</span>. <span class="ui">Bins</span> and <span class="ui">SKUs</span> show the top 250.</dd>
+              <dt class="ui">Packing pendency</dt><dd>DNs in To Be Picked or Under Picking (internal transfers left out). The ideal dispatch is the order day if ordered before 14:00, else the next day. Columns: <span class="ui">Open DNs</span>, <span class="ui">Due today</span>, <span class="ui">1-2 days late</span>, <span class="ui">3-7 days late</span>, <span class="ui">8+ days late</span>, <span class="ui">No dispatch date</span>. The list shows the first 300.</dd>
+              <dt class="ui">Putback pendency</dt><dd>DNs in Put Back Initiated, by days since created (<span class="ui">0-1 days</span>, <span class="ui">2-7 days</span>, <span class="ui">8+ days</span>, <span class="ui">Oldest</span>).</dd>
+              <dt class="ui">RTO initiated pendency</dt><dd>Open RTO returns (RVP returns are left out; the note says how many), with the return DN, AWB, courier and the DN it's against.</dd>
+              <dt class="ui">Complaints</dt><dd>By the date the ticket was raised: <span class="ui">Wrong item sent</span>, <span class="ui">Missing item</span>, <span class="ui">Damaged item</span>, <span class="ui">Expired product</span> and <span class="ui">% of shipments</span> per warehouse, and damaged items by courier.</dd>
+            </dl>
+            <p>Every table has <span class="ui">Export CSV</span> (for everyone), and you can click a column heading to sort.</p>
+            <h4>Common questions</h4>
+            <details><summary>What does "Process not in use" mean?</summary>
+              <p>That warehouse has no not-found records in the last 30 days. Read it as "not reporting", not as zero problems.</p></details>
+            <details><summary>Why is the CSV bigger than the table?</summary>
+              <p>Not-found exports have a row per missing item line, and the on-screen lists stop at 250 or 300 rows.</p></details>
+            <details><summary>Why does "Due today" include DNs due tomorrow?</summary>
+              <p>Due today counts everything that isn't late yet, including orders placed after today's 14:00 cutoff.</p></details>
+            <details><summary>Why are there fewer complaints than the CX reports?</summary>
+              <p>Dark-store tickets, tickets whose order can't be traced, and customer-fault or refuted tickets are left out.</p></details>
+            <details><summary>Why hasn't it changed since this morning?</summary>
+              <p>It only refreshes at 09:00 or when someone presses Refresh from DB or Refresh data.</p></details>
+          </section>
+          <section class="help-section" id="help-boxvault" data-panel="boxvault" data-group="Warehouse Dashboards">
+            <h3>BoxVault <span class="help-tag">Warehouse Dashboards</span></h3>
+            <p class="help-lead">Keeps the box supplier's invoices for the seven mother warehouses, reads every line on them, and tracks how many boxes each warehouse bought, has used and has left.</p>
+
+            <h4>The two views</h4>
+            <dl>
+              <dt class="ui">Analytics</dt><dd>The first view: spend, boxes and stock worked out from the invoices, with charts and checks.</dd>
+              <dt class="ui">Invoice Entry</dt><dd>Every line of every invoice uploaded, one row each.</dd>
+            </dl>
+            <p>Both are fetched again <strong>every hour</strong> while the page is open. The time of the last refresh shows next to the views (<span class="ui">Updated … · refreshes every hour</span>). If a refresh fails, what you see stays and the line says so.</p>
+
+            <h4 class="help-editors">Uploading invoices</h4>
+            <ul>
+              <li>Click <span class="ui">Upload invoices</span>, add one or more files (up to 20 at a time), and click <span class="ui">Upload</span>. Choosing files again adds to the list.</li>
+              <li>There's no warehouse to pick. Each PDF invoice's warehouse is read from its <strong>Ship To</strong> address: the warehouse's pincode, or else the city. One upload can hold invoices for several warehouses. The Bill To address is ignored (some invoices are billed to another state's office).</li>
+              <li>After uploading, a message lists what was added, under each warehouse, and anything that wasn't, with the reason.</li>
+              <li>Every file is saved in Google Drive, in a folder per warehouse. Files whose warehouse couldn't be read go in a folder called <span class="ui">Unsorted</span>.</li>
+              <li>Only the supplier's PDF tax invoices are read into Invoice Entry. Photos, scans and spreadsheets are saved to Drive but not read. An invoice is only accepted if its lines add up to its Sub Total and Total, so nothing half-read is stored.</li>
+            </ul>
+
+            <h4>Invoice Entry columns</h4>
+            <dl>
+              <dt class="ui">Warehouse</dt><dd>Where the invoice was shipped to, read from its Ship To address.</dd>
+              <dt class="ui">Item &amp; description, SKU</dt><dd>As printed on the invoice. The SKU is the box code, for example DBSUPTDEL006.</dd>
+              <dt class="ui">Quantity, Tax %, Tax amount</dt><dd>From the invoice line (Tax is IGST, or CGST plus SGST).</dd>
+              <dt class="ui">Total amount</dt><dd>The line's amount before tax plus its tax.</dd>
+              <dt class="ui">Invoice date, Invoice</dt><dd>The invoice number opens the PDF in Google Drive.</dd>
+              <dt class="ui">SKU used</dt><dd>Boxes used: the ERP's completed delivery notes (not returns) from that warehouse that carry the box's SKU, dated on or after the invoice date. One delivery note is one box.</dd>
+              <dt class="ui">SKU left</dt><dd>Quantity minus SKU used. In red when more boxes were used than bought.</dd>
+            </dl>
+            <p>When a warehouse has several invoices for the same SKU, boxes count against the oldest invoice first, so no box is counted twice. Use the warehouse filter and the search box (invoice, SKU or item) to narrow the list, and <span class="ui">Export CSV</span> to download what's shown.</p>
+            <p class="help-editors"><span class="ui">Remove</span> (under an invoice number) takes that invoice out of Invoice Entry, for example a cancelled one. Its PDF stays in Drive, and it can be uploaded again.</p>
+
+            <h4>Analytics</h4>
+            <dl>
+              <dt class="ui">Filters</dt><dd>Warehouse, month and item. Clicking a bar in <span class="ui">Spend by warehouse</span> or <span class="ui">Top items by spend</span> filters too; click it again to clear. <span class="ui">Clear filters</span> resets them all.</dd>
+              <dt class="ui">Spend</dt><dd>The invoices' total amount, with GST (hover for the GST part).</dd>
+              <dt class="ui">Invoices, Average invoice</dt><dd>How many invoices, and their average total.</dd>
+              <dt class="ui">Bought, Used, Left</dt><dd>Boxes and other items bought; SKU used and SKU left added up.</dd>
+              <dt class="ui">Spend over time</dt><dd>Spend or <span class="ui">Quantity</span>, by <span class="ui">Week</span> or <span class="ui">Month</span> of invoice date, split by warehouse. Weeks start on Monday, so a week labelled 28 Sep holds 1–4 Oct. <span class="ui">Table view</span> shows the numbers.</dd>
+              <dt class="ui">Spend by warehouse</dt><dd>Each warehouse's spend. It ignores the warehouse filter, so you can compare.</dd>
+              <dt class="ui">Top items by spend</dt><dd>The eight SKUs with the most spend; the caption says what the rest come to.</dd>
+              <dt class="ui">Data checks</dt><dd>Invoices for one warehouse with exactly the same lines (often a cancelled and re-issued invoice), SKUs whose price changed between invoices, more boxes used than bought, lines without a SKU, and SKUs with no usage in the ERP.</dd>
+              <dt class="ui">Stock by warehouse and SKU</dt><dd>Each SKU's bought, used, left, <span class="ui">Price per box</span> (amount before tax ÷ quantity), spend and last invoice date.</dd>
+            </dl>
+
+            <h4>Common questions</h4>
+            <details><summary>Why is SKU used 0 everywhere?</summary>
+              <p>SKU used counts delivery notes that carry the box's SKU, and the ERP has almost stopped adding box SKUs to delivery notes (rarely since June 2025, and none from October 2026). The count will start moving once boxes are added to delivery notes at packing again. Nothing in the portal can fix this.</p></details>
+            <details><summary>My invoice wasn't added. Why?</summary>
+              <p>The upload message gives the reason. The usual ones:</p>
+              <ul>
+                <li>It isn't a PDF.</li>
+                <li>It's a scan or photo, which has no text to read.</li>
+                <li>Its lines don't add up to its totals.</li>
+                <li>Its Ship To address doesn't match any of the seven warehouses.</li>
+                <li>It's already in Invoice Entry.</li>
+              </ul>
+              <p>In every case the file itself is still saved in Drive.</p></details>
+            <details><summary>What if I upload the same invoice twice?</summary>
+              <p>It's recognised by the supplier's GSTIN and the invoice number, so it isn't added again or uploaded to Drive again. The message says it's already in Invoice Entry.</p></details>
+            <details><summary>An invoice was cancelled and re-issued. What do I do?</summary>
+              <p>Both copies will be in Invoice Entry, and <span class="ui">Data checks</span> lists them as invoices with the same lines. Check which one was cancelled (it usually shows "Credits Applied" and a ₹0 balance due) and <span class="ui">Remove</span> it in Invoice Entry.</p></details>
+            <details><summary>An invoice went to the wrong warehouse.</summary>
+              <p>The warehouse comes from the invoice's Ship To address. Check the address on the PDF. If it's a new or changed warehouse address, ask an admin to update how addresses are matched.</p></details>
+            <details><summary>I can't see Upload invoices or Remove.</summary>
+              <p>You have view-only access to BoxVault. Ask an admin for editor access on the Users page.</p></details>
+          </section>
+          <section class="help-section" id="help-users" data-panel="users" data-group="Admin">
+            <h3>Users &amp; access <span class="help-tag">Admins only</span></h3>
+            <p class="help-lead">Where admins add people, choose their role and tick the tabs they can open.</p>
+            <dl>
+              <dt>The list</dt><dd><span class="ui">User</span>, <span class="ui">Role</span>, <span class="ui">Tab access</span> and <span class="ui">Last changed</span>.</dd>
+              <dt class="ui">+ Add user</dt><dd>A username, a password of at least 8 characters, a role (viewer, editor or admin), and the tabs they can open.</dd>
+              <dt class="ui">Edit</dt><dd>Change someone's role or tabs, set a <span class="ui">New password</span> (this signs them out everywhere), or <span class="ui">Delete user</span>.</dd>
+            </dl>
+            <ul>
+              <li>Usernames can't be changed; delete and add the person again instead.</li>
+              <li>You can't change your own role or delete yourself.</li>
+              <li>Changes reach the person within about a minute. Someone who's given a new tab may need to reload the page to see it.</li>
+              <li>People can't reset their own password, so "forgot password" requests come to you.</li>
+            </ul>
+          </section>
+          <section class="help-section" id="help-glossary" data-group="Reference">
+            <h3>Glossary</h3>
+            <p class="help-lead">Terms used across the portal.</p>
+            <dl>
+              <dt>AWB</dt><dd>Air waybill: the courier's tracking number for a shipment.</dd>
+              <dt>DN (delivery note)</dt><dd>The ERP document for an order leaving a warehouse. A return gets its own delivery note.</dd>
+              <dt>ERP</dt><dd>The company's order and warehouse system, where delivery notes, items and stock live.</dd>
+              <dt>ClickPost</dt><dd>The courier tracking service: shipment statuses, scans and courier remarks come from it.</dd>
+              <dt>Mother warehouse (MWH)</dt><dd>The seven main warehouses: Gurgaon (WH_Delhi_002), Bangalore, Mumbai (Bhiwandi), Pune, Kolkata, Chennai and Hyderabad. DS is a dark store.</dd>
+              <dt>RTO</dt><dd>Return to origin: a shipment that couldn't be delivered and is sent back. <em>Marked</em> is when it was flagged for return; <em>RTO-Delivered</em> (back at origin) is when it arrived back.</dd>
+              <dt>RPU / RVP</dt><dd>Reverse pickup: a return collected from the customer's address, rather than a failed delivery coming back.</dd>
+              <dt>MDND</dt><dd>Marked delivered, not delivered: a parcel a courier marked as delivered that wasn't received. RTO MDND checks returns marked as delivered back to the warehouse.</dd>
+              <dt>EDD / promise</dt><dd>The delivery date (or time) promised to the customer at order time, from the promise engine.</dd>
+              <dt>Promise engine</dt><dd>The system that works out each order's promise and the warehouse cutoff days.</dd>
+              <dt>Breach</dt><dd>Delivered (or still not delivered) after the promise.</dd>
+              <dt>Pendency</dt><dd>Work still waiting: orders not yet picked, shipped or delivered by when they should have been.</dd>
+              <dt>Ideal pickup / dispatch date</dt><dd>The day a parcel should leave the warehouse (Control Tower uses promise-engine cutoffs or the noon rule; Warehouse Exceptions uses a 14:00 cutoff).</dd>
+              <dt>OFD</dt><dd>Out for delivery: the first delivery attempt going out.</dd>
+              <dt>RAD</dt><dd>In Breach analysis: the rider reaching the customer. In RAD to OFD: the shipment reaching the destination hub.</dd>
+              <dt>QC / SDD / Standard</dt><dd>Promise types: quick commerce (under about 2 hours), same day (up to 1 day) and standard (more than 1 day).</dd>
+              <dt>P2D</dt><dd>Pickup to delivery, in days.</dd>
+              <dt>Line-haul connection</dt><dd>A shipment leaving the origin hub for the destination city.</dd>
+              <dt>HLD</dt><dd>Hyperlocal delivery partners (same-city).</dd>
+              <dt>POD</dt><dd>Proof of delivery: the document or photo attached to an RTO Process entry.</dd>
+              <dt>IGST / CGST / SGST</dt><dd>GST on an invoice: IGST between states, CGST + SGST within a state.</dd>
+              <dt>SKU</dt><dd>A product's code. In BoxVault, the box's code (for example DBSUPTDEL006).</dd>
+              <dt>Lakh (L) / crore (Cr)</dt><dd>₹1L = ₹1,00,000; ₹1Cr = ₹1,00,00,000.</dd>
+            </dl>
+          </section>
+          <!-- /help sections -->
+        </div>
+      </div>
+    </div>
+
     <!-- Shown by static/js/session.js to someone with no tabs yet. -->
     <div id="panel-no-access" class="side-panel">
       <div class="no-access">
@@ -1710,6 +2344,7 @@
   <script src="js/wh_exceptions.js"></script>
   <script src="js/boxvault.js"></script>
   <script src="js/boxvault_analytics.js"></script>
+  <script src="js/help.js"></script>
   <script src="js/users.js"></script>
   <script src="js/data_refresh.js"></script>
   <script src="js/motion.js"></script>

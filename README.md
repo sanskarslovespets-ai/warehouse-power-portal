@@ -166,6 +166,23 @@ password; **Edit** changes their role, tabs or password, or deletes them.
   dashes, underscores or @, and a look-alike of an existing one (`Rahul` vs
   `rahul`) is refused. Passwords are at least 8 characters.
 
+### Help & FAQs
+
+**Help & FAQs** (sidebar, for everyone; also the top bar's **Help**, which opens
+the help for the page you're on) explains each panel for the people using it:
+what it's for, where its data comes from and how fresh it is, every number and
+column, the controls, who can do what, and common questions. It also covers
+signing in, roles, data freshness and a glossary.
+
+- **Who sees what:** the sections are written in `static/index.html`
+  (`#panel-help`). A section with `data-panel` shows only to people who can open
+  that panel (several, space-separated, for a shared one). `data-group` files it
+  under a heading in the topics list. `static/js/help.js` builds the list, the
+  search (every word typed; matching answers open) and the top-bar button.
+- **Keeping it up to date:** when a panel changes, update its section and keep
+  labels exactly as the page shows them. `tests/test_help.py` fails if a tab (or
+  the Users page) has no section, or if a section is filed under the wrong group.
+
 ### Breach Explorer
 
 The six tabs of the SLA Breach Explorer (`breach-explorer.apps.internal.supertails.com`),
