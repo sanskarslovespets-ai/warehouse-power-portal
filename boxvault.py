@@ -18,15 +18,16 @@ import invoice_entries
 import invoice_pdf
 
 # The warehouses an invoice can be for, in dropdown order: {ERP warehouse code: what the dropdown shows}.
-# The names shown are the team's own; New Bhiwandi warehouse 002 is MWH_Mum_Bhiwandi_002 in the ERP.
+# Each is kept under its ERP code (the Drive folder, Invoice Entry, cp_database_N's from_warehouse);
+# WH_Delhi_002, the name the team uses for Gurgaon, is MWH_Ggn_bhajgera_001 in the ERP.
 WAREHOUSES = {
-    "MWH_Ggn_bhajgera_001": "WH_Delhi_002 · ERP: MWH_Ggn_bhajgera_001",
     "MWH_Blr_Neelmangla_002": "MWH_Blr_Neelmangla_002",
-    "MWH_Mum_Bhiwandi_002": "New Bhiwandi warehouse 002",
-    "MWH_Pun_Khed_001": "MWH_Pun_Khed_001",
-    "MWH_Hyd_Manikonda_001": "MWH_Hyd_Manikonda_001",
     "MWH_Chn_Kovur_001": "MWH_Chn_Kovur_001",
+    "MWH_Hyd_Manikonda_001": "MWH_Hyd_Manikonda_001",
     "MWH_Kol_Dankuni_001": "MWH_Kol_Dankuni_001",
+    "MWH_Mum_Bhiwandi_002": "MWH_Mum_Bhiwandi_002",
+    "MWH_Pun_Khed_001": "MWH_Pun_Khed_001",
+    "MWH_Ggn_bhajgera_001": "WH_Delhi_002",
 }
 # What an invoice may be: a PDF, a photo or scan, or a spreadsheet. Anything else (.html, .exe, ...) is
 # refused rather than dropped into a shared Drive folder.

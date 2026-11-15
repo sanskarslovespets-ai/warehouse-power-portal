@@ -308,9 +308,10 @@ the **Invoice Entry** tab. Given to people on the Users page as "BoxVault";
 editors and admins can upload (and take an invoice out of Invoice Entry),
 viewers only see it.
 
-- **Warehouses:** the seven mother warehouses, shown as the team names them
-  (`boxvault.WAREHOUSES`); each is stored under its ERP code (New Bhiwandi
-  warehouse 002 is `MWH_Mum_Bhiwandi_002`).
+- **Warehouses:** the seven mother warehouses (`boxvault.WAREHOUSES`):
+  MWH_Blr_Neelmangla_002, MWH_Chn_Kovur_001, MWH_Hyd_Manikonda_001,
+  MWH_Kol_Dankuni_001, MWH_Mum_Bhiwandi_002, MWH_Pun_Khed_001 and WH_Delhi_002.
+  Each is stored under its ERP code; WH_Delhi_002 is `MWH_Ggn_bhajgera_001`.
 - **Files:** PDFs, images (jpg, png, webp, heic) and spreadsheets (xlsx, xls,
   csv); up to 20 per upload, 500 MB in all. Choosing files again adds to the
   list; anything else is refused before anything is sent.

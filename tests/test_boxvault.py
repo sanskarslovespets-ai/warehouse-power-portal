@@ -119,9 +119,9 @@ def upload(c, warehouse, *files):
 def test_the_dropdown_lists_the_seven_warehouses_as_the_team_names_them(main, accounts, drive, monkeypatch):
     data = client(main, accounts, "tester").get("/api/boxvault").json()
     assert [w["name"] for w in data["warehouses"]] == [
-        "WH_Delhi_002 · ERP: MWH_Ggn_bhajgera_001", "MWH_Blr_Neelmangla_002", "New Bhiwandi warehouse 002",
-        "MWH_Pun_Khed_001", "MWH_Hyd_Manikonda_001", "MWH_Chn_Kovur_001", "MWH_Kol_Dankuni_001"]
-    assert data["warehouses"][2]["id"] == "MWH_Mum_Bhiwandi_002"
+        "MWH_Blr_Neelmangla_002", "MWH_Chn_Kovur_001", "MWH_Hyd_Manikonda_001", "MWH_Kol_Dankuni_001",
+        "MWH_Mum_Bhiwandi_002", "MWH_Pun_Khed_001", "WH_Delhi_002"]
+    assert data["warehouses"][-1]["id"] == "MWH_Ggn_bhajgera_001"  # kept under its ERP code
     assert data["ready"] is True and data["max_files"] == 20 and ".pdf" in data["extensions"]
     assert data["max_total_bytes"] == main.MAX_CONTENT_LENGTH
 
@@ -255,7 +255,7 @@ def test_a_pdf_invoice_is_uploaded_and_its_lines_listed_for_the_warehouse(main, 
     assert [{k: row[k] for k in ("warehouse", "warehouse_name", "description", "sku", "qty", "tax_pct", "tax_amount",
                                  "total", "invoice_date", "invoice_number", "drive_link", "uploaded_by", "used", "left")}
             for row in rows] == [{
-        "warehouse": "MWH_Ggn_bhajgera_001", "warehouse_name": "WH_Delhi_002 · ERP: MWH_Ggn_bhajgera_001",
+        "warehouse": "MWH_Ggn_bhajgera_001", "warehouse_name": "WH_Delhi_002",
         "description": "DEL Supertails 15*15*15 Printed 5 Ply carton box", "sku": "DBSUPTDEL006", "qty": 916.0,
         "tax_pct": 5.0, "tax_amount": 503.8, "total": 10579.8, "invoice_date": "2026-10-01",
         "invoice_number": "INV-20262642", "drive_link": "https://drive.example/INV-20262642.pdf", "uploaded_by": "tester",
