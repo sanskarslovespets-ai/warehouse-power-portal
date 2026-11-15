@@ -1,9 +1,11 @@
-"""BoxVault (Warehouse Dashboards): invoices uploaded for a mother warehouse, kept in Google Drive.
+"""BoxVault (Warehouse Dashboards): invoices uploaded for a mother warehouse, kept in Google Drive, and the
+line items of the PDF ones in Invoice Entry.
 
 The panel's Upload invoices sends one warehouse and one or more files to /api/boxvault/invoices. Each
 file goes into the Drive folder DRIVE_INVOICE_FOLDER_ID, inside a folder named after the warehouse's ERP
 code (made the first time that warehouse gets an invoice), under the name it was uploaded with; the
-Drive file's description says who uploaded it. The portal itself keeps nothing.
+Drive file's description says who uploaded it. A supplier's PDF tax invoice is also read (invoice_pdf.py)
+and its lines saved for that warehouse (invoice_entries.py); one already entered isn't uploaded again.
 """
 import mimetypes
 import os
@@ -12,6 +14,8 @@ import threading
 import traceback
 
 import google_services
+import invoice_entries
+import invoice_pdf
 
 # The warehouses an invoice can be for, in dropdown order: {ERP warehouse code: what the dropdown shows}.
 # The names shown are the team's own; New Bhiwandi warehouse 002 is MWH_Mum_Bhiwandi_002 in the ERP.
@@ -44,17 +48,17 @@ class NotSetUp(RuntimeError):
 
 
 class PartlyFailed(RuntimeError):
-    """Drive took some of the files, or none; the message says which to send again."""
+    """Drive took some of the files, or none; the message says which to send again. `files` is what happened to
+    the others, as upload() returns it."""
 
-    def __init__(self, uploaded, failed):
-        total = len(uploaded) + len(failed)
-        if not uploaded:
+    def __init__(self, files, failed):
+        if not files:
             message = "Upload to Google Drive failed, so none of the files were saved. Please try again."
         else:
-            message = (f"{len(uploaded)} of {total} files were uploaded, but these weren't: {', '.join(failed)}. "
-                       "Please upload those again.")
+            message = (f"{len(files)} of {len(files) + len(failed)} files went through, but these didn't: "
+                       f"{', '.join(failed)}. Please upload those again.")
         super().__init__(message)
-        self.uploaded = uploaded
+        self.files = files
         self.failed = failed
 
 
@@ -90,12 +94,28 @@ def _folder(parent, warehouse):
         return _folders[warehouse]
 
 
-def upload(warehouse, files, by):
-    """Puts `files` (FastAPI UploadFiles) in `warehouse`'s invoice folder, uploaded by `by`.
+def _read(f):
+    """invoice_pdf.read() of an uploaded file, or (None, why it wasn't read)."""
+    if _extension(f.filename) != ".pdf":
+        return None, "only PDF invoices are read into Invoice Entry"
+    data = f.file.read()
+    f.file.seek(0)  # for the Drive upload
+    try:
+        return invoice_pdf.read(data), None
+    except invoice_pdf.NotReadable as e:
+        return None, f"couldn't read it as an invoice: {e}"
 
-    Returns [{"name", "link"}] in the order given. Checks everything before sending anything, so a wrong
-    file type stops the whole upload; if Drive then fails on some files, the rest are still sent and
-    PartlyFailed names the ones that weren't.
+
+def upload(warehouse, files, by):
+    """Puts `files` (FastAPI UploadFiles) in `warehouse`'s invoice folder, uploaded by `by`, and each readable PDF
+    invoice's lines in Invoice Entry.
+
+    Returns, in the order given, one {"file", "name", "link", "entry"} per file, where entry is one of
+    {"status": "added", "invoice", "lines"}, {"status": "already", "invoice"} (already entered: not uploaded
+    again, link None), {"status": "not_read", "reason"} or {"status": "not_saved", "invoice", "reason"} (in
+    Drive, but Invoice Entry couldn't be written). Checks everything before sending anything, so a wrong file
+    type stops the whole upload; if Drive then fails on some files, the rest are still sent and PartlyFailed
+    names the ones that weren't.
     """
     parent = os.environ.get(FOLDER_SETTING, "").strip()
     if not parent:
@@ -121,9 +141,21 @@ def upload(warehouse, files, by):
         raise Refused(" ".join(errors))
 
     description = f"Invoice for {warehouse}, uploaded by {by} on BoxVault (Warehouse Power Portal)."
-    uploaded, failed = [], []
+    done, failed = [], []
     for f in files:
         name = drive_name(f.filename)
+        invoice, reason = _read(f)
+        if invoice:
+            key = (invoice["supplier_gstin"], invoice["invoice_number"])
+            try:
+                already = invoice_entries.entered(*key)
+            except Exception:
+                traceback.print_exc()
+                already = False  # uploaded anyway; saving its lines says if the database is the problem
+            if already:
+                done.append({"file": f.filename, "name": name, "link": None,
+                             "entry": {"status": "already", "invoice": invoice["invoice_number"]}})
+                continue
         try:
             # The type Drive stores comes from the checked extension, not the browser's claim.
             link = google_services.upload_file(f.file, name, mimetypes.guess_type(name)[0], _folder(parent, warehouse),
@@ -131,15 +163,46 @@ def upload(warehouse, files, by):
         except google_services.GoogleNotConnected:
             raise  # nothing will get through; main.py says why
         except Exception as e:
-            if google_services.is_no_storage(e) and not uploaded:  # every file would fail the same way
+            if google_services.is_no_storage(e) and not any(d["link"] for d in done):  # all would fail the same way
                 raise NotSetUp("Google Drive won't store the invoices: their folder is in a My Drive, where the "
                                "portal's service account has no storage. It needs to be in a shared drive.") from e
             traceback.print_exc()
             with _folders_lock:
                 _folders.pop(warehouse, None)  # in case the folder was moved or deleted: look it up again next time
             failed.append(f.filename)
-        else:
-            uploaded.append({"name": name, "link": link})
+            continue
+        done.append({"file": f.filename, "name": name, "link": link, "entry": _enter(invoice, reason, warehouse,
+                                                                                         name, link, by)})
     if failed:
-        raise PartlyFailed(uploaded, failed)
-    return uploaded
+        raise PartlyFailed(done, failed)
+    return done
+
+
+def _enter(invoice, reason, warehouse, name, link, by):
+    """Saves an uploaded invoice's lines; what happened, as upload() describes it."""
+    if not invoice:
+        return {"status": "not_read", "reason": reason}
+    number = invoice["invoice_number"]
+    try:
+        lines = invoice_entries.add(invoice, warehouse, name, link, by)
+    except invoice_entries.AlreadyEntered:  # entered by someone else since it was checked
+        return {"status": "already", "invoice": number}
+    except Exception:
+        traceback.print_exc()
+        return {"status": "not_saved", "invoice": number,
+                "reason": "it's in Drive, but its lines couldn't be saved to Invoice Entry"}
+    return {"status": "added", "invoice": number, "lines": lines}
+
+
+def entries():
+    """Invoice Entry for the page: every line, with the warehouse's name and the SKU's usage.
+
+    used/left (boxes used since the invoice, and the quantity left) are None: nothing yet records which box an
+    order shipped in. Neither cp_database_N (only the products' SKUs) nor the ERP (Delivery Note Item's
+    custom_packaging_item, always empty) does, so there is nothing to count against a box SKU.
+    """
+    rows = invoice_entries.rows()
+    for row in rows:
+        row["warehouse_name"] = WAREHOUSES.get(row["warehouse"], row["warehouse"])
+        row["used"] = row["left"] = None
+    return rows

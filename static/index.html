@@ -1039,8 +1039,9 @@
       </div>
     </div>
 
-    <!-- Warehouse Dashboards > BoxVault: Upload invoices puts a warehouse's invoice files in Google Drive
-         (boxvault.py; static/js/boxvault.js, with the upload form #bv-modal below). Ids start "bv-". -->
+    <!-- Warehouse Dashboards > BoxVault: Upload invoices puts a warehouse's invoice files in Google Drive, and
+         Invoice Entry lists the PDF invoices' line items (boxvault.py, invoice_pdf.py, invoice_entries.py;
+         static/js/boxvault.js, with the upload form #bv-modal below). Ids start "bv-". -->
     <div id="panel-boxvault" class="side-panel bx">
       <div class="panel-head">
         <div>
@@ -1054,18 +1055,55 @@
           </button>
         </div>
       </div>
+      <div class="seg bv-views" role="group" aria-label="BoxVault views">
+        <button type="button" aria-pressed="true">Invoice Entry</button>
+      </div>
       <div id="bv-banner" class="banner hidden" role="status"></div>
       <div class="bx-state" id="bv-state">
-        <strong>Invoices</strong>
+        <strong id="bv-state-title">Invoice Entry</strong>
         <p id="bv-state-text">Loading…</p>
       </div>
-      <section class="panel" id="bv-done" hidden>
-        <div class="phead"><h3>Uploaded</h3><span class="pnote">since this page was opened; each file is in Google Drive, in its warehouse's folder</span></div>
-        <div class="tablebox"><table>
-          <thead><tr><th class="no-sort">Time</th><th class="no-sort">Warehouse</th><th class="no-sort">File</th></tr></thead>
-          <tbody id="bv-done-rows"></tbody>
-        </table></div>
-      </section>
+      <div id="bv-body" hidden>
+        <section class="controls" aria-label="Invoice Entry filters">
+          <div class="crow">
+            <span class="clabel">Filter</span>
+            <select id="bv-f-wh" class="ct-select" aria-label="Warehouse"><option value="">All warehouses</option></select>
+            <input type="search" id="bv-f-q" class="ct-search" placeholder="Invoice, SKU or item" aria-label="Search by invoice, SKU or item">
+            <div class="spacer"></div>
+            <button class="linkbtn" type="button" id="bv-csv" title="Every line matching the filters">Export CSV</button>
+          </div>
+        </section>
+
+        <div class="pend-cards" id="bv-cards"></div>
+
+        <section class="panel">
+          <div class="phead"><h3>Invoice Entry</h3><span class="pnote" id="bv-shown"></span></div>
+          <div class="tablebox"><table id="bv-table">
+            <thead><tr>
+              <th class="ct-left">Warehouse</th>
+              <th class="ct-left">Item &amp; description</th>
+              <th class="ct-left">SKU</th>
+              <th>Quantity</th>
+              <th>Tax %</th>
+              <th>Tax amount</th>
+              <th title="Amount before tax, plus tax">Total amount</th>
+              <th class="ct-left">Invoice date</th>
+              <th class="ct-left">Invoice</th>
+              <th title="Not recorded yet: see the note below">SKU used</th>
+              <th title="Not recorded yet: see the note below">SKU left</th>
+            </tr></thead>
+            <tbody id="bv-rows"></tbody>
+          </table></div>
+        </section>
+
+        <footer class="note">
+          One row per line item of each uploaded PDF invoice, for the warehouse chosen when it was uploaded. The invoice number opens the PDF in Google Drive.
+          An invoice is read only if its lines add up to its Sub Total and, with tax, to its Total; one already here isn't added (or uploaded) again.
+          <strong>Total amount</strong> = the line's amount before tax plus its tax (IGST, or CGST and SGST).
+          <strong>SKU used</strong> and <strong>SKU left</strong> show "—" for now: nothing records which box an order shipped in.
+          Clickpost (cp_database_N) lists only the products in each order, and the ERP's packaging field on delivery notes is empty, so there is nothing to count against a box SKU yet.
+        </footer>
+      </div>
     </div>
 
     <div id="panel-be-complaints" class="side-panel bx">

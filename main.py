@@ -50,6 +50,7 @@ import rto_delivered
 import rto_mdnd
 import rto_recon
 import google_services
+import invoice_entries
 import security
 import users
 from rto_process import awb_exists
@@ -778,7 +779,8 @@ def control_tower_data(request: Request):
     return Response(gzip.decompress(gz), media_type="application/json", headers=headers)
 
 
-# BoxVault (boxvault.py): Upload invoices puts a warehouse's invoice files in Google Drive.
+# BoxVault (boxvault.py): Upload invoices puts a warehouse's invoice files in Google Drive, and the PDF invoices'
+# line items in Invoice Entry (invoice_pdf.py reads them, invoice_entries.py keeps them).
 @app.get("/api/boxvault")
 def boxvault_settings():
     """The warehouse dropdown, the file types it takes, and whether uploads are set up here."""
@@ -792,15 +794,39 @@ def boxvault_upload(
     files: Annotated[list[UploadFile] | None, File()] = None,
 ):
     try:
-        uploaded = boxvault.upload(warehouse, files or [], by=_access(request).username)
+        done = boxvault.upload(warehouse, files or [], by=_access(request).username)
     except boxvault.Refused as e:
         raise HTTPException(400, str(e))
     except (boxvault.NotSetUp, google_services.GoogleNotConnected) as e:
         raise HTTPException(503, str(e))
     except boxvault.PartlyFailed as e:
-        # what did go through too, so the page can list it and offer only the rest again
-        return JSONResponse({"error": str(e), "uploaded": e.uploaded, "failed": e.failed}, status_code=502)
-    return {"warehouse": warehouse, "uploaded": uploaded}
+        # what did go through too, so the page can say so and offer only the rest again
+        return JSONResponse({"error": str(e), "warehouse": warehouse, "files": e.files, "failed": e.failed},
+                            status_code=502)
+    return {"warehouse": warehouse, "files": done}
+
+
+@app.get("/api/boxvault/entries")
+def boxvault_entries():
+    """Invoice Entry: every uploaded invoice's line items."""
+    try:
+        return {"rows": boxvault.entries()}
+    except Exception:
+        traceback.print_exc()
+        raise HTTPException(502, "Could not read Invoice Entry from the database. Please try again.")
+
+
+@app.delete("/api/boxvault/entries")
+def boxvault_remove(supplier_gstin: str = "", invoice_number: str = ""):
+    """Takes one invoice's lines out of Invoice Entry (e.g. uploaded for the wrong warehouse); its PDF stays in Drive."""
+    try:
+        removed = invoice_entries.remove(supplier_gstin, invoice_number)
+    except Exception:
+        traceback.print_exc()
+        raise HTTPException(502, "Could not change Invoice Entry in the database. Please try again.")
+    if not removed:
+        raise HTTPException(404, f"Invoice {invoice_number} isn't in Invoice Entry.")
+    return {"removed": removed}
 
 
 class EntryForm(BaseModel):

@@ -18,3 +18,5 @@ uvicorn[standard]==0.54.0
 cryptography==50.0.1
 # Older CA bundles still trust a root whose intermediates' keys were compromised (PYSEC-2026-4320).
 certifi>=2026.10.19
+# BoxVault reads suppliers' PDF invoices (invoice_pdf.py).
+pypdf==7.1.0

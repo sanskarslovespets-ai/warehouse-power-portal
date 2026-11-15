@@ -79,7 +79,9 @@ API_TABS = (
     ("/api/breach-explorer/radofd", "be-radofd"),
     ("/api/breach-explorer/warehouse", "warehouse-exceptions"),  # the Warehouse Exceptions page, and its Refresh data
     ("/api/control-tower", "control-tower"),  # and .../status, and .../refresh (a write: editors only)
-    ("/api/boxvault", "boxvault"),  # and .../invoices, Upload invoices (a write: editors only)
+    # and .../entries (Invoice Entry), and the writes, editors only: .../invoices (Upload invoices) and
+    # DELETE .../entries (taking an invoice out)
+    ("/api/boxvault", "boxvault"),
 )
 # Any signed-in user: who they are, and how fresh the data is (no data itself)
 ANY_SIGNED_IN = {"/api/me", "/api/data-status", "/api/breach-explorer/status"}

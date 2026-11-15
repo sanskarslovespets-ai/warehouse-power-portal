@@ -303,8 +303,10 @@ Users page as "Warehouse Exceptions".
 ### Warehouse Dashboards → BoxVault
 
 **Upload invoices**: choose a warehouse, add one or more invoice files, and they
-are saved to Google Drive. Given to people on the Users page as "BoxVault";
-editors and admins can upload, viewers only see the panel.
+are saved to Google Drive; each supplier PDF invoice's line items are read into
+the **Invoice Entry** tab. Given to people on the Users page as "BoxVault";
+editors and admins can upload (and take an invoice out of Invoice Entry),
+viewers only see it.
 
 - **Warehouses:** the seven mother warehouses, shown as the team names them
   (`boxvault.WAREHOUSES`); each is stored under its ERP code (New Bhiwandi
@@ -316,8 +318,26 @@ editors and admins can upload, viewers only see the panel.
   per warehouse named by its ERP code, made the first time that warehouse gets
   an invoice. Each file keeps the name it was uploaded with (characters other
   than letters, digits, spaces and `. _ - ( ) &` become `_`), and its Drive
-  description says who uploaded it. The portal keeps no copy or list of its own:
-  the panel shows what was uploaded since the page was opened, with Drive links.
+  description says who uploaded it.
+- **Invoice Entry:** one row per line item: warehouse, item & description, SKU,
+  quantity, tax %, tax amount, total amount (before tax + tax), invoice date and
+  the invoice number (opens the PDF in Drive), with filters, totals and Export
+  CSV. `invoice_pdf.py` reads the PDF's text (the supplier's Zoho layout: IGST,
+  or CGST + SGST; 8-digit HSN codes and long SKUs that wrap are put back
+  together), and keeps an invoice only if its lines add up to its Sub Total and,
+  with tax, its Total. All 72 of Dealberg's October 2026 invoices read and
+  matched their totals. Scans, photos, spreadsheets and other layouts are still
+  saved to Drive, and the upload says they weren't read.
+- **Kept in:** `scm.boxvault_invoice_lines` (`invoice_entries.py`), made by the
+  first invoice saved, like `warehouse_user_access`; the database account needs
+  CREATE for that, then SELECT, INSERT and DELETE. An invoice is known by its
+  supplier's GSTIN and number, so one already entered is neither entered nor
+  uploaded again; Remove takes one out (its PDF stays in Drive) so it can be
+  uploaded again, for the right warehouse say.
+- **SKU used / SKU left:** shown as "—". Nothing records which box an order
+  shipped in: `cp_database_N` lists only the products' SKUs (no `DBSUPT…` box SKU
+  appears in it), and the ERP's Delivery Note Item `custom_packaging_item` is
+  empty at all seven warehouses. `boxvault.entries()` is where a count would go.
 - **Setting it up:** make the folder **in a shared drive**, not in someone's My
   Drive: Drive won't store a service account's uploads in a My Drive ("Service
   Accounts do not have storage quota"), and the panel says so if the folder is
