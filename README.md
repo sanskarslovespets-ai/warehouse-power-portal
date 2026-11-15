@@ -335,10 +335,6 @@ viewers only see it.
   supplier's GSTIN and number, so one already entered is neither entered nor
   uploaded again; Remove takes one out (its PDF stays in Drive) so it can be
   uploaded again, for the right warehouse say.
-- **SKU used / SKU left:** shown as "—". Nothing records which box an order
-  shipped in: `cp_database_N` lists only the products' SKUs (no `DBSUPT…` box SKU
-  appears in it), and the ERP's Delivery Note Item `custom_packaging_item` is
-  empty at all seven warehouses. `boxvault.entries()` is where a count would go.
 - **Setting it up:** make the folder **in a shared drive**, not in someone's My
   Drive: Drive won't store a service account's uploads in a My Drive ("Service
   Accounts do not have storage quota"), and the panel says so if the folder is

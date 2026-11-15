@@ -33,7 +33,7 @@
   let opened = false;
 
   const CSV_COLUMNS = ["Warehouse", "Item & description", "SKU", "Quantity", "Tax %", "Tax amount", "Total amount",
-    "Invoice date", "Invoice", "SKU used", "SKU left", "Amount before tax", "Rate", "HSN", "Supplier", "Uploaded by"];
+    "Invoice date", "Invoice", "Amount before tax", "Rate", "HSN", "Supplier", "Uploaded by"];
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -188,9 +188,7 @@
         el("td", "num", money(r.tax_amount)),
         el("td", "num", money(r.total)),
         el("td", "ct-left", day(r.invoice_date)),
-        invoiceCell,
-        el("td", "num bv-na", r.used == null ? "—" : qty(r.used)),
-        el("td", "num bv-na", r.left == null ? "—" : qty(r.left))
+        invoiceCell
       );
       return tr;
     }));
@@ -213,8 +211,7 @@
     window.RtoCsv.download("boxvault_invoice_entry", CSV_COLUMNS, matching().map((r) => ({
       "Warehouse": r.warehouse, "Item & description": r.description, "SKU": r.sku, "Quantity": r.qty,
       "Tax %": r.tax_pct, "Tax amount": r.tax_amount, "Total amount": r.total, "Invoice date": r.invoice_date,
-      "Invoice": r.invoice_number, "SKU used": r.used == null ? "" : r.used, "SKU left": r.left == null ? "" : r.left,
-      "Amount before tax": r.amount, "Rate": r.rate, "HSN": r.hsn, "Supplier": r.supplier, "Uploaded by": r.uploaded_by,
+      "Invoice": r.invoice_number, "Amount before tax": r.amount, "Rate": r.rate, "HSN": r.hsn, "Supplier": r.supplier, "Uploaded by": r.uploaded_by,
     })));
   });
   whFilter.addEventListener("change", render);

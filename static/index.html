@@ -1089,8 +1089,6 @@
               <th title="Amount before tax, plus tax">Total amount</th>
               <th class="ct-left">Invoice date</th>
               <th class="ct-left">Invoice</th>
-              <th title="Not recorded yet: see the note below">SKU used</th>
-              <th title="Not recorded yet: see the note below">SKU left</th>
             </tr></thead>
             <tbody id="bv-rows"></tbody>
           </table></div>
@@ -1100,8 +1098,6 @@
           One row per line item of each uploaded PDF invoice, for the warehouse chosen when it was uploaded. The invoice number opens the PDF in Google Drive.
           An invoice is read only if its lines add up to its Sub Total and, with tax, to its Total; one already here isn't added (or uploaded) again.
           <strong>Total amount</strong> = the line's amount before tax plus its tax (IGST, or CGST and SGST).
-          <strong>SKU used</strong> and <strong>SKU left</strong> show "—" for now: nothing records which box an order shipped in.
-          Clickpost (cp_database_N) lists only the products in each order, and the ERP's packaging field on delivery notes is empty, so there is nothing to count against a box SKU yet.
         </footer>
       </div>
     </div>

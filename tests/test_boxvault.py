@@ -253,13 +253,13 @@ def test_a_pdf_invoice_is_uploaded_and_its_lines_listed_for_the_warehouse(main, 
 
     rows = c.get("/api/boxvault/entries").json()["rows"]
     assert [{k: row[k] for k in ("warehouse", "warehouse_name", "description", "sku", "qty", "tax_pct", "tax_amount",
-                                 "total", "invoice_date", "invoice_number", "drive_link", "uploaded_by", "used", "left")}
+                                 "total", "invoice_date", "invoice_number", "drive_link", "uploaded_by")}
             for row in rows] == [{
         "warehouse": "MWH_Ggn_bhajgera_001", "warehouse_name": "WH_Delhi_002",
         "description": "DEL Supertails 15*15*15 Printed 5 Ply carton box", "sku": "DBSUPTDEL006", "qty": 916.0,
         "tax_pct": 5.0, "tax_amount": 503.8, "total": 10579.8, "invoice_date": "2026-10-01",
-        "invoice_number": "INV-20262642", "drive_link": "https://drive.example/INV-20262642.pdf", "uploaded_by": "tester",
-        "used": None, "left": None}]  # nothing records which box an order shipped in (boxvault.entries)
+        "invoice_number": "INV-20262642", "drive_link": "https://drive.example/INV-20262642.pdf", "uploaded_by": "tester"}]
+    assert "used" not in rows[0] and "left" not in rows[0]  # no SKU used / SKU left columns
 
 
 def test_an_invoice_already_entered_is_neither_entered_nor_uploaded_again(main, accounts, drive, entries):

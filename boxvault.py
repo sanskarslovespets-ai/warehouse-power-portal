@@ -196,14 +196,8 @@ def _enter(invoice, reason, warehouse, name, link, by):
 
 
 def entries():
-    """Invoice Entry for the page: every line, with the warehouse's name and the SKU's usage.
-
-    used/left (boxes used since the invoice, and the quantity left) are None: nothing yet records which box an
-    order shipped in. Neither cp_database_N (only the products' SKUs) nor the ERP (Delivery Note Item's
-    custom_packaging_item, always empty) does, so there is nothing to count against a box SKU.
-    """
+    """Invoice Entry for the page: every line, with the name the dropdown gives its warehouse."""
     rows = invoice_entries.rows()
     for row in rows:
         row["warehouse_name"] = WAREHOUSES.get(row["warehouse"], row["warehouse"])
-        row["used"] = row["left"] = None
     return rows
