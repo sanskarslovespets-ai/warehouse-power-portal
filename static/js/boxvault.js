@@ -8,6 +8,7 @@
   // - Invoice Entry: those line items (/api/boxvault/entries), filtered and totalled here; editors can take an
   //   invoice out (a cancelled one, say), which leaves its PDF in Drive. SKU used / SKU left come
   //   with them, counted from the ERP's delivery notes (box_usage.py).
+  // - Analytics (boxvault_analytics.js): the same lines, totalled and compared.
   // The warehouses (the filter), the file types and the limits come from /api/boxvault, the first time the panel is opened.
 
   const $ = (id) => document.getElementById(id);
@@ -17,6 +18,8 @@
   const stateText = $("bv-state-text");
   const body = $("bv-body");
   const usageProblem = $("bv-usage-problem");
+  const analyticsEl = $("bv-analytics");
+  const viewButtons = document.querySelectorAll("#panel-boxvault .bv-views button");
   const whFilter = $("bv-f-wh");
   const search = $("bv-f-q");
   const overlay = $("bv-modal");
@@ -32,6 +35,7 @@
   let chosen = []; // the File objects to upload, in the order they were added
   let uploading = false;
   let opened = false;
+  let view = "entries"; // or "analytics"
 
   const CSV_COLUMNS = ["Warehouse", "Item & description", "SKU", "Quantity", "Tax %", "Tax amount", "Total amount",
     "Invoice date", "Invoice", "SKU used", "SKU left", "Amount before tax", "Rate", "HSN", "Supplier", "Uploaded by"];
@@ -117,7 +121,7 @@
       usageProblem.classList.toggle("hidden", !data.usage_problem);
     } catch (err) {
       stateEl.hidden = false;
-      body.hidden = true;
+      body.hidden = analyticsEl.hidden = true;
       stateText.textContent = "Couldn't load Invoice Entry: " + err.message;
       return;
     }
@@ -147,9 +151,14 @@
 
   function render() {
     stateEl.hidden = rows.length > 0;
-    body.hidden = rows.length === 0;
+    body.hidden = rows.length === 0 || view !== "entries";
+    analyticsEl.hidden = rows.length === 0 || view !== "analytics";
     if (!rows.length) {
       stateText.textContent = emptyText();
+      return;
+    }
+    if (view === "analytics") {
+      window.BoxVaultAnalytics.render(rows, settings.warehouses);
       return;
     }
     const shown = matching();
@@ -220,6 +229,13 @@
       "Amount before tax": r.amount, "Rate": r.rate, "HSN": r.hsn, "Supplier": r.supplier, "Uploaded by": r.uploaded_by,
     })));
   });
+  function showView(v) {
+    view = v;
+    viewButtons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v)));
+    if (settings) render(); // before the first load, load() renders
+  }
+  viewButtons.forEach((b) => b.addEventListener("click", () => showView(b.dataset.view)));
+
   whFilter.addEventListener("change", render);
   search.addEventListener("input", render);
 

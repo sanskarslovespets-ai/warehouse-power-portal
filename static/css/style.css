@@ -868,6 +868,7 @@ a.link:hover { text-decoration: underline; }
   color: var(--chart-text-primary);
 }
 .chart-card-sub { font-size: 12px; color: var(--chart-text-muted); margin: 0 0 14px; }
+.chart-card-tools { display: flex; align-items: center; gap: 10px; }
 .table-toggle-btn {
   background: none;
   border: 1px solid var(--border);
@@ -1725,6 +1726,18 @@ fieldset.form-row legend { margin-bottom: 6px; padding: 0; font-size: 12.5px; fo
 .bx #bv-table td.bv-na { color: var(--muted); }
 .bx #bv-table td.bv-over { color: var(--error); font-weight: 600; }
 .bx #bv-usage-problem { margin: 0 0 16px; }
+/* BoxVault > Analytics (boxvault_analytics.js) */
+.bx #bv-analytics .kpi-row { margin-top: 16px; }
+.bx #bv-analytics .chart-grid .hbar-row { grid-template-columns: 172px 1fr auto; }
+.bx #bv-analytics .panel { margin-top: 16px; }
+.bx .bv-a-table th .stack-swatch { margin-right: 6px; vertical-align: -1px; }
+.bx .bv-a-table td.bv-best { font-weight: 700; color: var(--text); }
+.bx .bv-a-table td.bv-na { color: var(--muted); }
+.bx .bv-a-table td.bv-over { color: var(--error); font-weight: 600; }
+.bx .bv-a-table td.bv-sku { font-family: var(--font-mono); font-size: 12px; }
+.bx #bv-a-checks .check-list li { display: block; padding: 5px 0; }
+.bx #bv-a-checks .check-awb { display: block; overflow-wrap: normal; }
+.bx #bv-a-checks .check-times { display: block; margin-top: 1px; white-space: normal; font-family: var(--font-body); font-size: 12px; }
 .bx #bv-table td a { color: var(--primary-dark); font-weight: 600; text-decoration: none; }
 .bx #bv-table td a:hover { text-decoration: underline; }
 .bx #bv-table .bv-remove { display: block; margin-top: 1px; padding: 0; font-size: 11.5px; font-weight: 600; color: var(--muted); }

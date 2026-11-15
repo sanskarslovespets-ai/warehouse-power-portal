@@ -346,6 +346,22 @@ viewers only see it.
   supplier's GSTIN and number, so one already entered is neither entered nor
   uploaded again; Remove takes one out (its PDF stays in Drive), a cancelled
   invoice say, and it can be uploaded again.
+- **Analytics** (the second view, `static/js/boxvault_analytics.js`): Invoice
+  Entry's lines totalled in the browser, with warehouse, month and item filters
+  (clicking a bar filters too):
+  - **KPIs:** spend, invoices, average invoice, and boxes bought, used and left.
+  - **Spend over time:** spend or quantity, by week or month, stacked by warehouse.
+  - **Spend by warehouse and top items:** horizontal bars.
+  - **Data checks:** invoices for one warehouse with identical lines (cancelled
+    and re-issued?), SKUs whose price changed, more boxes used than bought, lines
+    without a SKU, and SKUs with no ERP usage.
+  - **Price per box by size and warehouse:** amount before tax ÷ quantity,
+    with the spread between the cheapest and dearest warehouse. It ignores the
+    warehouse and item filters, since it compares warehouses.
+  - **Stock by warehouse and SKU:** bought, used, left, price and spend.
+
+  Each warehouse keeps one colour whatever the filters (slots 1–7 of a
+  palette validated for colour-blind separation on the card surface).
 - **SKU used / SKU left** (`box_usage.py`): counted from the ERP (`DN_DB_*`)
   each time Invoice Entry loads. SKU used = completed delivery notes (`status =
   'Completed'`, `is_return = 0`) from the invoice's warehouse

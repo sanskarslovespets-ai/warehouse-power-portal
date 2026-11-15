@@ -1056,7 +1056,8 @@
         </div>
       </div>
       <div class="seg bv-views" role="group" aria-label="BoxVault views">
-        <button type="button" aria-pressed="true">Invoice Entry</button>
+        <button type="button" data-view="entries" aria-pressed="true">Invoice Entry</button>
+        <button type="button" data-view="analytics" aria-pressed="false">Analytics</button>
       </div>
       <div id="bv-banner" class="banner hidden" role="status"></div>
       <div class="bx-state" id="bv-state">
@@ -1103,6 +1104,39 @@
           <strong>Total amount</strong> = the line's amount before tax plus its tax (IGST, or CGST and SGST).
           <strong>SKU used</strong> = the ERP's completed delivery notes (not returns) from the invoice's warehouse that carry the box's SKU, dated on or after the invoice date: one delivery note is one box.
           <strong>SKU left</strong> = Quantity minus SKU used. When a warehouse has more than one invoice for a SKU, boxes count against the oldest invoice first, so none is counted twice.
+        </footer>
+      </div>
+
+      <!-- BoxVault > Analytics (static/js/boxvault_analytics.js): Invoice Entry's lines, totalled and compared. -->
+      <div id="bv-analytics" hidden>
+        <section class="controls" aria-label="Analytics filters">
+          <div class="crow">
+            <span class="clabel">Filter</span>
+            <select id="bv-a-wh" class="ct-select" aria-label="Warehouse"></select>
+            <select id="bv-a-month" class="ct-select" aria-label="Month"></select>
+            <select id="bv-a-item" class="ct-select" aria-label="Item"></select>
+            <button class="linkbtn" type="button" id="bv-a-clear" hidden>Clear filters</button>
+          </div>
+        </section>
+        <div class="kpi-row" id="bv-a-kpis"></div>
+        <div class="chart-card trend-card" id="bv-a-trend"></div>
+        <div class="chart-grid bv-a-grid">
+          <div class="chart-card" id="bv-a-by-wh"></div>
+          <div class="chart-card" id="bv-a-items"></div>
+          <div class="chart-card" id="bv-a-checks"></div>
+        </div>
+        <section class="panel">
+          <div class="phead"><h3>Price per box by size and warehouse</h3><span class="pnote" id="bv-a-prices-note"></span></div>
+          <div class="tablebox"><table class="bv-a-table" id="bv-a-prices"></table></div>
+        </section>
+        <section class="panel">
+          <div class="phead"><h3>Stock by warehouse and SKU</h3><span class="pnote" id="bv-a-stock-note"></span></div>
+          <div class="tablebox"><table class="bv-a-table" id="bv-a-stock"></table></div>
+        </section>
+        <footer class="note">
+          Everything here is worked out from Invoice Entry's lines, for the filters above. <strong>Spend</strong> is the invoices' total amount (before tax plus GST).
+          <strong>Price per box</strong> is the amount before tax divided by the quantity, across that size's invoices; it compares warehouses, so it ignores the warehouse and item filters.
+          <strong>Used</strong> and <strong>Left</strong> are Invoice Entry's SKU used and SKU left (completed ERP delivery notes carrying the box's SKU since its invoice).
         </footer>
       </div>
     </div>
@@ -1676,6 +1710,7 @@
   <script src="js/control_tower.js"></script>
   <script src="js/wh_exceptions.js"></script>
   <script src="js/boxvault.js"></script>
+  <script src="js/boxvault_analytics.js"></script>
   <script src="js/users.js"></script>
   <script src="js/data_refresh.js"></script>
   <script src="js/motion.js"></script>
