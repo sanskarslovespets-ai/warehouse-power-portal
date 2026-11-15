@@ -8,7 +8,8 @@
   // - Invoice Entry: those line items (/api/boxvault/entries), filtered and totalled here; editors can take an
   //   invoice out (a cancelled one, say), which leaves its PDF in Drive. SKU used / SKU left come
   //   with them, counted from the ERP's delivery notes (box_usage.py).
-  // - Analytics (boxvault_analytics.js): the same lines, totalled and compared.
+  // - Analytics (boxvault_analytics.js, the first view): the same lines, totalled and compared.
+  // Both are fetched again every hour while the page is open (when it's next looked at, if it's in the background).
   // The warehouses (the filter), the file types and the limits come from /api/boxvault, the first time the panel is opened.
 
   const $ = (id) => document.getElementById(id);
@@ -20,6 +21,8 @@
   const usageProblem = $("bv-usage-problem");
   const analyticsEl = $("bv-analytics");
   const viewButtons = document.querySelectorAll("#panel-boxvault .bv-views button");
+  const updatedEl = $("bv-updated");
+  const REFRESH_MS = 60 * 60 * 1000;
   const whFilter = $("bv-f-wh");
   const search = $("bv-f-q");
   const overlay = $("bv-modal");
@@ -35,7 +38,9 @@
   let chosen = []; // the File objects to upload, in the order they were added
   let uploading = false;
   let opened = false;
-  let view = "entries"; // or "analytics"
+  let view = "analytics"; // or "entries"
+  let refreshing = false; // the hourly timer is running
+  let stale = false; // the hour came round while the page was in the background
 
   const CSV_COLUMNS = ["Warehouse", "Item & description", "SKU", "Quantity", "Tax %", "Tax amount", "Total amount",
     "Invoice date", "Invoice", "SKU used", "SKU left", "Amount before tax", "Rate", "HSN", "Supplier", "Uploaded by"];
@@ -111,15 +116,41 @@
     uploadBtn.disabled = !settings.ready;
     uploadBtn.title = settings.ready ? "" : "Invoice uploads aren't set up on this server yet";
     await loadEntries();
+    startRefreshing();
   }
 
-  async function loadEntries() {
+  const clock = () => new Date().toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+
+  // Every hour, Invoice Entry and its SKU used (from the ERP) are fetched again; a page in the background waits
+  // until it's looked at.
+  function startRefreshing() {
+    if (refreshing) return;
+    refreshing = true;
+    setInterval(() => {
+      if (document.hidden) stale = true;
+      else loadEntries(true);
+    }, REFRESH_MS);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && stale) {
+        stale = false;
+        loadEntries(true);
+      }
+    });
+  }
+
+  // background: the hourly refresh, which keeps what's shown if it fails (and says so) rather than an error page.
+  async function loadEntries(background) {
     try {
       const data = await getJson("/api/boxvault/entries");
       rows = data.rows;
       usageProblem.textContent = data.usage_problem || "";
       usageProblem.classList.toggle("hidden", !data.usage_problem);
+      updatedEl.textContent = `Updated ${clock()} · refreshes every hour`;
     } catch (err) {
+      if (background && rows.length) {
+        updatedEl.textContent = `Couldn't refresh at ${clock()} (${err.message}); showing the last data. Trying again in an hour.`;
+        return;
+      }
       stateEl.hidden = false;
       body.hidden = analyticsEl.hidden = true;
       stateText.textContent = "Couldn't load Invoice Entry: " + err.message;

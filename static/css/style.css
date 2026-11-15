@@ -1720,7 +1720,8 @@ fieldset.form-row legend { margin-bottom: 6px; padding: 0; font-size: 12.5px; fo
 /* the list below the picker shows what's chosen; the picker's own "No file chosen" would contradict it */
 #bv-files { color: transparent; }
 /* Invoice Entry */
-.bx .bv-views { margin: 0 0 16px; }
+.bx .bv-viewbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 16px; }
+.bx .bv-updated { font-size: 12px; color: var(--muted); }
 .bx #bv-table td.bv-desc { white-space: normal; min-width: 220px; max-width: 340px; }
 .bx #bv-table td.bv-sku { font-family: var(--font-mono); font-size: 12px; }
 .bx #bv-table td.bv-na { color: var(--muted); }
@@ -1730,8 +1731,6 @@ fieldset.form-row legend { margin-bottom: 6px; padding: 0; font-size: 12.5px; fo
 .bx #bv-analytics .kpi-row { margin-top: 16px; }
 .bx #bv-analytics .chart-grid .hbar-row { grid-template-columns: 172px 1fr auto; }
 .bx #bv-analytics .panel { margin-top: 16px; }
-.bx .bv-a-table th .stack-swatch { margin-right: 6px; vertical-align: -1px; }
-.bx .bv-a-table td.bv-best { font-weight: 700; color: var(--text); }
 .bx .bv-a-table td.bv-na { color: var(--muted); }
 .bx .bv-a-table td.bv-over { color: var(--error); font-weight: 600; }
 .bx .bv-a-table td.bv-sku { font-family: var(--font-mono); font-size: 12px; }

@@ -260,46 +260,11 @@
   }
 
   // ---------- tables ----------
-  function cell(text, cls, title) {
-    const td = el("td", cls ? { class: cls } : {}, text);
-    if (title) td.title = title;
-    return td;
-  }
+  const cell = (text, cls) => el("td", cls ? { class: cls } : {}, text);
 
   function fillTable(table, head, body, emptyText) {
     table.replaceChildren(el("thead", {}, el("tr", {}, head)),
       el("tbody", {}, body.length ? body : el("tr", {}, el("td", { class: "ct-left bv-na", colspan: String(head.length) }, emptyText))));
-  }
-
-  // Price per box: amount before tax / quantity for each size at each warehouse, across the month filter's invoices.
-  function renderPrices() {
-    const list = filtered(["warehouse", "sku"]).filter((r) => r.qty > 0);
-    const whs = warehouses.filter((w) => list.some((r) => r.warehouse === w.id));
-    const sizes = [...group(list, (r) => size(r.description).toLowerCase()).values()].map((lines) => {
-      const cells = whs.map((w) => {
-        const mine = lines.filter((r) => r.warehouse === w.id);
-        if (!mine.length) return null;
-        const rates = mine.map((r) => r.rate);
-        return { value: sum(mine, "amount") / sum(mine, "qty"), qty: sum(mine, "qty"), invoices: new Set(mine.map(invoiceKey)).size,
-          lo: Math.min(...rates), hi: Math.max(...rates) };
-      });
-      const values = cells.filter(Boolean).map((c) => c.value);
-      const lo = Math.min(...values), hi = Math.max(...values);
-      return { label: size(lines[0].description), cells, lo, hi, spread: values.length > 1 ? (hi - lo) / lo : null };
-    }).sort((a, b) => (b.spread ?? -1) - (a.spread ?? -1) || a.label.localeCompare(b.label));
-
-    const head = [el("th", { class: "ct-left" }, "Size / item"),
-      ...whs.map((w) => el("th", {}, el("span", { class: "stack-swatch", style: `background:${colorById[w.id]}` }), w.name)),
-      el("th", { title: "How much dearer the dearest warehouse is than the cheapest" }, "Spread")];
-    const body = sizes.map((s) => el("tr", {},
-      cell(s.label, "ct-left"),
-      ...s.cells.map((c) => !c ? cell("·", "bv-na") : cell(rate(c.value), s.spread && c.value === s.lo ? "bv-best" : "",
-        `${qtyText(c.qty)} bought on ${c.invoices} invoice${c.invoices === 1 ? "" : "s"}` + (c.hi > c.lo ? `, at ${rate(c.lo)} to ${rate(c.hi)}` : ""))),
-      cell(s.spread == null ? "—" : `${Math.round(s.spread * 100)}%`, s.spread == null ? "bv-na" : "")));
-    fillTable($("bv-a-prices"), head, body, "No lines for these filters.");
-    const compared = sizes.filter((s) => s.spread != null).length;
-    $("bv-a-prices-note").textContent = `${sizes.length} sizes and items, ${compared} bought at more than one warehouse · lowest price in bold` +
-      (state.month ? ` · ${monthLabel(state.month)}` : "");
   }
 
   // Stock: each warehouse's SKUs, bought / used / left, for the filters.
@@ -335,7 +300,6 @@
     renderByWarehouse();
     renderItems();
     renderChecksCard(list);
-    renderPrices();
     renderStock(list);
   }
 

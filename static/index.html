@@ -1055,13 +1055,16 @@
           </button>
         </div>
       </div>
-      <div class="seg bv-views" role="group" aria-label="BoxVault views">
-        <button type="button" data-view="entries" aria-pressed="true">Invoice Entry</button>
-        <button type="button" data-view="analytics" aria-pressed="false">Analytics</button>
+      <div class="bv-viewbar">
+        <div class="seg bv-views" role="group" aria-label="BoxVault views">
+          <button type="button" data-view="analytics" aria-pressed="true">Analytics</button>
+          <button type="button" data-view="entries" aria-pressed="false">Invoice Entry</button>
+        </div>
+        <span class="bv-updated" id="bv-updated" role="status"></span>
       </div>
       <div id="bv-banner" class="banner hidden" role="status"></div>
       <div class="bx-state" id="bv-state">
-        <strong id="bv-state-title">Invoice Entry</strong>
+        <strong id="bv-state-title">BoxVault</strong>
         <p id="bv-state-text">Loading…</p>
       </div>
       <div id="bv-body" hidden>
@@ -1126,16 +1129,12 @@
           <div class="chart-card" id="bv-a-checks"></div>
         </div>
         <section class="panel">
-          <div class="phead"><h3>Price per box by size and warehouse</h3><span class="pnote" id="bv-a-prices-note"></span></div>
-          <div class="tablebox"><table class="bv-a-table" id="bv-a-prices"></table></div>
-        </section>
-        <section class="panel">
           <div class="phead"><h3>Stock by warehouse and SKU</h3><span class="pnote" id="bv-a-stock-note"></span></div>
           <div class="tablebox"><table class="bv-a-table" id="bv-a-stock"></table></div>
         </section>
         <footer class="note">
           Everything here is worked out from Invoice Entry's lines, for the filters above. <strong>Spend</strong> is the invoices' total amount (before tax plus GST).
-          <strong>Price per box</strong> is the amount before tax divided by the quantity, across that size's invoices; it compares warehouses, so it ignores the warehouse and item filters.
+          <strong>Price per box</strong> is the amount before tax divided by the quantity bought.
           <strong>Used</strong> and <strong>Left</strong> are Invoice Entry's SKU used and SKU left (completed ERP delivery notes carrying the box's SKU since its invoice).
         </footer>
       </div>
