@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Annotated
 
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -39,6 +39,7 @@ import analytics_mdnd
 import auth
 import analytics_recon
 import analytics_status
+import boxvault
 import breach_explorer
 import control_tower
 import daily_refresh
@@ -775,6 +776,31 @@ def control_tower_data(request: Request):
     if "gzip" in request.headers.get("accept-encoding", ""):
         return Response(gz, media_type="application/json", headers={**headers, "Content-Encoding": "gzip"})
     return Response(gzip.decompress(gz), media_type="application/json", headers=headers)
+
+
+# BoxVault (boxvault.py): Upload invoices puts a warehouse's invoice files in Google Drive.
+@app.get("/api/boxvault")
+def boxvault_settings():
+    """The warehouse dropdown, the file types it takes, and whether uploads are set up here."""
+    return {**boxvault.settings(), "max_total_bytes": MAX_CONTENT_LENGTH}
+
+
+@app.post("/api/boxvault/invoices", status_code=201)
+def boxvault_upload(
+    request: Request,
+    warehouse: Annotated[str, Form()] = "",
+    files: Annotated[list[UploadFile] | None, File()] = None,
+):
+    try:
+        uploaded = boxvault.upload(warehouse, files or [], by=_access(request).username)
+    except boxvault.Refused as e:
+        raise HTTPException(400, str(e))
+    except (boxvault.NotSetUp, google_services.GoogleNotConnected) as e:
+        raise HTTPException(503, str(e))
+    except boxvault.PartlyFailed as e:
+        # what did go through too, so the page can list it and offer only the rest again
+        return JSONResponse({"error": str(e), "uploaded": e.uploaded, "failed": e.failed}, status_code=502)
+    return {"warehouse": warehouse, "uploaded": uploaded}
 
 
 class EntryForm(BaseModel):

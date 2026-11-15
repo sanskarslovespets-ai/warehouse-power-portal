@@ -1690,3 +1690,36 @@ fieldset.form-row legend { margin-bottom: 6px; padding: 0; font-size: 12.5px; fo
 @media (max-width: 700px) {
   .role-options { grid-template-columns: 1fr; }
 }
+
+/* ---------- BoxVault: the chosen invoice files in Upload invoices, and links to what was uploaded ---------- */
+.bv-file-list {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.bv-file-list[hidden] { display: none; }
+.bv-file-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  font-size: 13px;
+}
+.bv-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bv-file-size { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bv-file-list .icon-btn { font-size: 18px; padding: 0 6px; border-radius: 6px; }
+.bv-file-list .icon-btn:hover { color: var(--error); background: var(--error-bg); }
+#bv-done-rows a { color: var(--primary-dark); font-weight: 600; text-decoration: none; }
+#bv-done-rows a:hover { text-decoration: underline; }
+/* the list below the picker shows what's chosen; the picker's own "No file chosen" would contradict it */
+#bv-files { color: transparent; }
+/* words, not counts: the Breach Explorer tables right-align every column after the first */
+.bx #bv-done th, .bx #bv-done td { text-align: left; padding-left: 16px; }
+.bx #bv-done td:last-child { width: 50%; }

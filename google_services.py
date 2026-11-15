@@ -9,6 +9,7 @@ from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
 
 load_dotenv()
@@ -98,7 +99,7 @@ def diagnostics():
 
     Safe to call any time; never touches or prints the private key itself.
     """
-    result = {"auth": None, "sheet": None, "pod_folder": None, "video_folder": None}
+    result = {"auth": None, "sheet": None, "pod_folder": None, "video_folder": None, "invoice_folder": None}
     try:
         creds = _credentials()
         result["auth"] = "ok (service account: %s)" % service_account_email() if os.path.exists(
@@ -116,7 +117,8 @@ def diagnostics():
         result["sheet"] = f"error: {e}"
 
     drive = build("drive", "v3", credentials=creds, cache_discovery=False)
-    for key, env_key in (("pod_folder", "DRIVE_POD_FOLDER_ID"), ("video_folder", "DRIVE_VIDEO_FOLDER_ID")):
+    for key, env_key in (("pod_folder", "DRIVE_POD_FOLDER_ID"), ("video_folder", "DRIVE_VIDEO_FOLDER_ID"),
+                         ("invoice_folder", "DRIVE_INVOICE_FOLDER_ID")):  # the last for BoxVault (boxvault.py)
         try:
             meta = drive.files().get(
                 fileId=os.environ[env_key], fields="id, name", supportsAllDrives=True
@@ -127,7 +129,7 @@ def diagnostics():
     return result
 
 
-def upload_file(stream, filename, mimetype, folder_id):
+def upload_file(stream, filename, mimetype, folder_id, description=None):
     """Upload a file into a Drive folder and return its shareable view link."""
     drive = build("drive", "v3", credentials=_credentials(), cache_discovery=False)
     media = MediaIoBaseUpload(
@@ -136,13 +138,45 @@ def upload_file(stream, filename, mimetype, folder_id):
         chunksize=UPLOAD_CHUNK_SIZE,
         resumable=True,
     )
+    body = {"name": filename, "parents": [folder_id]}
+    if description:
+        body["description"] = description
     created = drive.files().create(
-        body={"name": filename, "parents": [folder_id]},
+        body=body,
         media_body=media,
         fields="id, webViewLink",
         supportsAllDrives=True,
     ).execute()
     return created["webViewLink"]
+
+
+def is_no_storage(error):
+    """True for Drive's "Service Accounts do not have storage quota": a service account's upload into a folder in
+    someone's My Drive. It owns what it uploads and has no storage there, so the folder must be in a shared drive."""
+    return isinstance(error, HttpError) and b"storageQuotaExceeded" in (error.content or b"")
+
+
+FOLDER_MIMETYPE = "application/vnd.google-apps.folder"
+
+
+def subfolder(parent_id, name):
+    """The id of the folder called `name` directly inside `parent_id`, made there if there isn't one."""
+    drive = build("drive", "v3", credentials=_credentials(), cache_discovery=False)
+    quoted = name.replace("\\", "\\\\").replace("'", "\\'")
+    found = drive.files().list(
+        q=f"'{parent_id}' in parents and name = '{quoted}' and mimeType = '{FOLDER_MIMETYPE}' and trashed = false",
+        fields="files(id)",
+        pageSize=1,
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True,
+    ).execute().get("files", [])
+    if found:
+        return found[0]["id"]
+    return drive.files().create(
+        body={"name": name, "mimeType": FOLDER_MIMETYPE, "parents": [parent_id]},
+        fields="id",
+        supportsAllDrives=True,
+    ).execute()["id"]
 
 
 def _entry_to_row(entry):
