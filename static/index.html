@@ -2067,6 +2067,7 @@
               <dt class="ui">Total amount</dt><dd>The line's amount before tax plus its tax.</dd>
               <dt class="ui">Invoice date, Invoice</dt><dd>The invoice number opens the PDF in Google Drive.</dd>
               <dt class="ui">SKU used</dt><dd>Boxes used: the ERP's completed delivery notes (not returns) from that warehouse that carry the box's SKU, dated on or after the invoice date. One delivery note is one box.</dd>
+              <dt class="ui">SKU used %</dt><dd>SKU used as a share of the quantity bought (SKU used ÷ Quantity). In red over 100%.</dd>
               <dt class="ui">SKU left</dt><dd>Quantity minus SKU used. In red when more boxes were used than bought.</dd>
             </dl>
             <p>When a warehouse has several invoices for the same SKU, boxes count against the oldest invoice first, so no box is counted twice. Use the warehouse filter and the search box (invoice, SKU or item) to narrow the list, and <span class="ui">Export CSV</span> to download what's shown.</p>
@@ -2077,16 +2078,16 @@
               <dt class="ui">Filters</dt><dd>Warehouse, month and item. Clicking a bar in <span class="ui">Spend by warehouse</span> or <span class="ui">Top items by spend</span> filters too; click it again to clear. <span class="ui">Clear filters</span> resets them all.</dd>
               <dt class="ui">Spend</dt><dd>The invoices' total amount, with GST (hover for the GST part).</dd>
               <dt class="ui">Invoices, Average invoice</dt><dd>How many invoices, and their average total.</dd>
-              <dt class="ui">Bought, Used, Left</dt><dd>Boxes and other items bought; SKU used and SKU left added up.</dd>
+              <dt class="ui">Bought, Used, Used %, Left</dt><dd>Boxes and other items bought; SKU used added up; used as a share of bought; and SKU left added up.</dd>
               <dt class="ui">Spend over time</dt><dd>Spend or <span class="ui">Quantity</span>, by <span class="ui">Week</span> or <span class="ui">Month</span> of invoice date, split by warehouse. Weeks start on Monday, so a week labelled 28 Sep holds 1–4 Oct. <span class="ui">Table view</span> shows the numbers.</dd>
               <dt class="ui">Spend by warehouse</dt><dd>Each warehouse's spend. It ignores the warehouse filter, so you can compare.</dd>
               <dt class="ui">Top items by spend</dt><dd>The eight SKUs with the most spend; the caption says what the rest come to.</dd>
               <dt class="ui">Data checks</dt><dd>Invoices for one warehouse with exactly the same lines (often a cancelled and re-issued invoice), SKUs whose price changed between invoices, more boxes used than bought, lines without a SKU, and SKUs with no usage in the ERP.</dd>
-              <dt class="ui">Stock by warehouse and SKU</dt><dd>Each SKU's bought, used, left, <span class="ui">Price per box</span> (amount before tax ÷ quantity), spend and last invoice date.</dd>
+              <dt class="ui">Stock by warehouse and SKU</dt><dd>Each SKU's bought, used, <span class="ui">Used %</span>, left, <span class="ui">Price per box</span> (amount before tax ÷ quantity), spend and last invoice date.</dd>
             </dl>
 
             <h4>Common questions</h4>
-            <details><summary>Why is SKU used 0 everywhere?</summary>
+            <details><summary>Why is SKU used (and SKU used %) 0 everywhere?</summary>
               <p>SKU used counts delivery notes that carry the box's SKU, and the ERP has almost stopped adding box SKUs to delivery notes (rarely since June 2025, and none from October 2026). The count will start moving once boxes are added to delivery notes at packing again. Nothing in the portal can fix this.</p></details>
             <details><summary>My invoice wasn't added. Why?</summary>
               <p>The upload message gives the reason. The usual ones:</p>
