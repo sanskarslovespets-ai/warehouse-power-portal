@@ -1116,6 +1116,7 @@
               <th class="ct-left">Invoice date</th>
               <th class="ct-left">Invoice</th>
               <th title="Completed ERP delivery notes from this warehouse carrying this SKU since the invoice date (1 delivery note = 1 box)">SKU used</th>
+              <th title="SKU used as a share of the quantity bought">SKU used %</th>
               <th title="Quantity minus SKU used">SKU left</th>
             </tr></thead>
             <tbody id="bv-rows"></tbody>
@@ -1127,7 +1128,7 @@
           An invoice is read only if its lines add up to its Sub Total and, with tax, to its Total; one already here isn't added (or uploaded) again.
           <strong>Total amount</strong> = the line's amount before tax plus its tax (IGST, or CGST and SGST).
           <strong>SKU used</strong> = the ERP's completed delivery notes (not returns) from the invoice's warehouse that carry the box's SKU, dated on or after the invoice date: one delivery note is one box.
-          <strong>SKU left</strong> = Quantity minus SKU used. When a warehouse has more than one invoice for a SKU, boxes count against the oldest invoice first, so none is counted twice.
+          <strong>SKU used %</strong> = SKU used ÷ Quantity. <strong>SKU left</strong> = Quantity minus SKU used. When a warehouse has more than one invoice for a SKU, boxes count against the oldest invoice first, so none is counted twice.
         </footer>
       </div>
 
@@ -1156,7 +1157,7 @@
         <footer class="note">
           Everything here is worked out from Invoice Entry's lines, for the filters above. <strong>Spend</strong> is the invoices' total amount (before tax plus GST).
           <strong>Price per box</strong> is the amount before tax divided by the quantity bought.
-          <strong>Used</strong> and <strong>Left</strong> are Invoice Entry's SKU used and SKU left (completed ERP delivery notes carrying the box's SKU since its invoice).
+          <strong>Used</strong>, <strong>Used %</strong> and <strong>Left</strong> are Invoice Entry's SKU used, SKU used % and SKU left (completed ERP delivery notes carrying the box's SKU since its invoice); Used % is used ÷ bought.
         </footer>
       </div>
     </div>

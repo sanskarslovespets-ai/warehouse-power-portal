@@ -43,7 +43,7 @@
   let stale = false; // the hour came round while the page was in the background
 
   const CSV_COLUMNS = ["Warehouse", "Item & description", "SKU", "Quantity", "Tax %", "Tax amount", "Total amount",
-    "Invoice date", "Invoice", "SKU used", "SKU left", "Amount before tax", "Rate", "HSN", "Supplier", "Uploaded by"];
+    "Invoice date", "Invoice", "SKU used", "SKU used %", "SKU left", "Amount before tax", "Rate", "HSN", "Supplier", "Uploaded by"];
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -63,6 +63,7 @@
   }
   const qty = (n) => num(n, Number.isInteger(n) ? 0 : 2);
   const money = (n) => num(n, 2);
+  const percent = (n) => num(n, Number.isInteger(n) ? 0 : 1) + "%";
   const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const day = (iso) => `${iso.slice(8, 10)} ${MON[+iso.slice(5, 7) - 1]} ${iso.slice(0, 4)}`;
 
@@ -233,6 +234,7 @@
         el("td", "ct-left", day(r.invoice_date)),
         invoiceCell,
         el("td", r.used == null ? "num bv-na" : "num", r.used == null ? "—" : qty(r.used)),
+        el("td", r.used_pct == null ? "num bv-na" : r.used_pct > 100 ? "num bv-over" : "num", r.used_pct == null ? "—" : percent(r.used_pct)),
         el("td", r.left == null ? "num bv-na" : r.left < 0 ? "num bv-over" : "num", r.left == null ? "—" : qty(r.left))
       );
       return tr;
@@ -256,7 +258,8 @@
     window.RtoCsv.download("boxvault_invoice_entry", CSV_COLUMNS, matching().map((r) => ({
       "Warehouse": r.warehouse, "Item & description": r.description, "SKU": r.sku, "Quantity": r.qty,
       "Tax %": r.tax_pct, "Tax amount": r.tax_amount, "Total amount": r.total, "Invoice date": r.invoice_date,
-      "Invoice": r.invoice_number, "SKU used": r.used == null ? "" : r.used, "SKU left": r.left == null ? "" : r.left,
+      "Invoice": r.invoice_number, "SKU used": r.used == null ? "" : r.used,
+      "SKU used %": r.used_pct == null ? "" : r.used_pct, "SKU left": r.left == null ? "" : r.left,
       "Amount before tax": r.amount, "Rate": r.rate, "HSN": r.hsn, "Supplier": r.supplier, "Uploaded by": r.uploaded_by,
     })));
   });
