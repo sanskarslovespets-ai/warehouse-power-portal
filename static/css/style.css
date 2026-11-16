@@ -1725,6 +1725,7 @@ fieldset.form-row legend { margin-bottom: 6px; padding: 0; font-size: 12.5px; fo
 .bx #bv-table td.bv-desc { white-space: normal; min-width: 220px; max-width: 340px; }
 .bx #bv-table td.bv-sku { font-family: var(--font-mono); font-size: 12px; }
 .bx #bv-table td.bv-na { color: var(--muted); }
+.bx #bv-table td.bv-used-in { white-space: nowrap; font-size: 12px; }
 .bx #bv-usage-problem { margin: 0 0 16px; }
 /* BoxVault's boxes used (Enter usage, and the step after an upload): #bv-usage-form in the upload dialog */
 #bv-modal .modal.bv-wide { max-width: 860px; }

@@ -392,7 +392,9 @@ viewers only see it.
   month's boxes go against the oldest of the warehouse's invoices for the SKU
   dated by the end of that month that hasn't had all its boxes counted yet, so
   none is counted twice; any beyond that go on the newest one, whose SKU used
-  then goes past its quantity (Analytics' data checks list those). Until the
+  then goes past its quantity (Analytics' data checks list those). Invoice
+  Entry's **Used in** shows which months' boxes make up each line's SKU used
+  (`used_in` on each row, also in the CSV). Until the
   table exists SKU used is 0, Enter usage is disabled, and the page says so; if
   it can't be read, the lines are still listed with "—" and a note.
 - **Setting it up:** make the folder **in a shared drive**, not in someone's My

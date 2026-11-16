@@ -60,7 +60,7 @@
   let stale = false; // the hour came round while the page was in the background
 
   const CSV_COLUMNS = ["Warehouse", "Item & description", "SKU", "Quantity", "Tax %", "Tax amount", "Total amount",
-    "Invoice date", "Invoice", "SKU used", "Amount before tax", "Rate", "HSN", "Supplier", "Uploaded by"];
+    "Invoice date", "Invoice", "SKU used", "Used in", "Amount before tax", "Rate", "HSN", "Supplier", "Uploaded by"];
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -267,10 +267,22 @@
         el("td", "num", money(r.total)),
         el("td", "ct-left", day(r.invoice_date)),
         invoiceCell,
-        el("td", r.used == null ? "num bv-na" : "num", r.used == null ? "—" : qty(r.used))
+        el("td", r.used == null ? "num bv-na" : "num", r.used == null ? "—" : qty(r.used)),
+        usedInCell(r)
       );
       return tr;
     }));
+  }
+
+  // Used in: the months whose boxes make up the line's SKU used (with how many from each, when there's more than one).
+  const usedInText = (r, sep) => (r.used_in || []).map((m) => `${monthLabel(m.month)}: ${m.used}`).join(sep);
+  function usedInCell(r) {
+    const months = r.used_in || [];
+    if (!months.length) return el("td", "ct-left bv-na", "—");
+    const td = el("td", "ct-left bv-used-in");
+    td.title = months.map((m) => `${monthLabel(m.month)}: ${qty(m.used)} boxes`).join("\n");
+    td.append(...months.map((m) => el("div", "", months.length > 1 ? `${monthLabel(m.month)}: ${qty(m.used)}` : monthLabel(m.month))));
+    return td;
   }
 
   async function removeInvoice(r) {
@@ -290,7 +302,7 @@
     window.RtoCsv.download("boxvault_invoice_entry", CSV_COLUMNS, matching().map((r) => ({
       "Warehouse": r.warehouse, "Item & description": r.description, "SKU": r.sku, "Quantity": r.qty,
       "Tax %": r.tax_pct, "Tax amount": r.tax_amount, "Total amount": r.total, "Invoice date": r.invoice_date,
-      "Invoice": r.invoice_number, "SKU used": r.used == null ? "" : r.used,
+      "Invoice": r.invoice_number, "SKU used": r.used == null ? "" : r.used, "Used in": usedInText(r, "; "),
       "Amount before tax": r.amount, "Rate": r.rate, "HSN": r.hsn, "Supplier": r.supplier, "Uploaded by": r.uploaded_by,
     })));
   });

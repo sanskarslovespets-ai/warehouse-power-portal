@@ -5,7 +5,7 @@ Editors type the numbers in BoxVault (after uploading invoices, or with Enter us
 month, kept in scm.boxvault_sku_usage. An invoice line's SKU used comes from them: each month's boxes go against
 the oldest of the warehouse's invoices for that SKU dated by the end of the month that hasn't had all its boxes
 counted yet, so no box is counted twice; boxes beyond what those invoices bought go on the newest of them, whose
-SKU used then goes past its quantity.
+SKU used then goes past its quantity. Invoice Entry's Used in shows which months' boxes make up each line's SKU used.
 
 The table is made by hand (the portal doesn't create tables), and the portal's database account needs SELECT,
 INSERT and UPDATE on it:
@@ -94,39 +94,54 @@ def month_end(month):
     return date(year, mon, calendar.monthrange(year, mon)[1])
 
 
-def allocate(invoices, months):
-    """How many boxes each invoice line has used.
+def split(invoices, months):
+    """Which months' boxes each invoice line has used.
 
     invoices: [(invoice date, quantity)] oldest first; months: [(the month's last day, boxes)] oldest first.
+    Returns, for each invoice, {the month's last day: boxes} for the months that put boxes on it, oldest first.
     """
     used = [0] * len(invoices)
+    taken = [{} for _ in invoices]
+
+    def put(i, ended, n):
+        if n:
+            used[i] += n
+            taken[i][ended] = taken[i].get(ended, 0) + n
+
     for ended, boxes in months:
         dated = [i for i, (invoiced, _) in enumerate(invoices) if invoiced <= ended]
         if not dated:
             continue  # used before the first of these invoices, so not one of their boxes
         for i in dated:
             take = min(boxes, max(invoices[i][1] - used[i], 0))
-            used[i] += take
+            put(i, ended, take)
             boxes -= take
             if not boxes:
                 break
-        used[dated[-1]] += boxes  # more than these invoices bought
-    return used
+        put(dated[-1], ended, boxes)  # more than these invoices bought
+    return taken
+
+
+def allocate(invoices, months):
+    """How many boxes each invoice line has used (see split)."""
+    return [sum(t.values()) for t in split(invoices, months)]
 
 
 def add(rows, usage):
-    """Puts "used" (SKU used) on each Invoice Entry row ({warehouse, sku, qty, invoice_date, invoice_number,
-    line_no}) from `usage` (records()); None on a line without a SKU."""
+    """Puts SKU used on each Invoice Entry row ({warehouse, sku, qty, invoice_date, invoice_number, line_no}) from
+    `usage` (records()): "used", the boxes (None on a line without a SKU), and "used_in", the months they were used
+    in, [{"month": "YYYY-MM", "used"}] oldest first."""
     months = defaultdict(list)
     for u in usage:
         months[(u["warehouse"], u["sku"])].append((month_end(u["month"]), u["used"]))
     groups = defaultdict(list)
     for row in rows:
-        row["used"] = None
+        row["used"], row["used_in"] = None, []
         if row["sku"]:
             groups[(row["warehouse"], row["sku"])].append(row)
     for key, lines in groups.items():
         lines.sort(key=lambda r: (r["invoice_date"], r["invoice_number"], r["line_no"]))
-        used = allocate([(date.fromisoformat(r["invoice_date"]), r["qty"]) for r in lines], sorted(months.get(key, [])))
-        for row, n in zip(lines, used):
-            row["used"] = n
+        taken = split([(date.fromisoformat(r["invoice_date"]), r["qty"]) for r in lines], sorted(months.get(key, [])))
+        for row, t in zip(lines, taken):
+            row["used"] = sum(t.values())
+            row["used_in"] = [{"month": ended.strftime("%Y-%m"), "used": n} for ended, n in t.items()]

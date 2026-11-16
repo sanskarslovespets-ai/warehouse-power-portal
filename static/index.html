@@ -1117,6 +1117,7 @@
               <th class="ct-left">Invoice date</th>
               <th class="ct-left">Invoice</th>
               <th title="Boxes used, from the numbers entered for this warehouse and SKU (Enter usage), counted against the oldest invoice first">SKU used</th>
+              <th class="ct-left" title="The months the boxes in SKU used were used in (as entered with Enter usage)">Used in</th>
             </tr></thead>
             <tbody id="bv-rows"></tbody>
           </table></div>
@@ -1127,6 +1128,7 @@
           An invoice is read only if its lines add up to its Sub Total and, with tax, to its Total; one already here isn't added (or uploaded) again.
           <strong>Total amount</strong> = the line's amount before tax plus its tax (IGST, or CGST and SGST).
           <strong>SKU used</strong> = the boxes used entered for the warehouse and SKU (with <strong>Enter usage</strong>, or after uploading), for the invoice's month and later.
+          <strong>Used in</strong> = the months those boxes were used in (with how many from each, when there's more than one).
           When a warehouse has more than one invoice for a SKU, boxes count against the oldest invoice first, so none is counted twice.
         </footer>
       </div>
@@ -2066,6 +2068,7 @@
               <dt class="ui">Total amount</dt><dd>The line's amount before tax plus its tax.</dd>
               <dt class="ui">Invoice date, Invoice</dt><dd>The invoice number opens the PDF in Google Drive.</dd>
               <dt class="ui">SKU used</dt><dd>Boxes used, from the numbers entered for that warehouse and SKU (see <em>Entering boxes used</em> below), from the invoice's month on.</dd>
+              <dt class="ui">Used in</dt><dd>The months those boxes were used in, for example <span class="ui">Oct 2026</span>. When they come from more than one month, each shows how many (<span class="ui">Oct 2026: 600</span>, <span class="ui">Nov 2026: 400</span>). Hover for the numbers.</dd>
             </dl>
             <p>When a warehouse has several invoices for the same SKU, boxes count against the oldest invoice first, so no box is counted twice. A month's boxes count only against invoices dated by the end of that month. Use the warehouse filter and the search box (invoice, SKU or item) to narrow the list, and <span class="ui">Export CSV</span> to download what's shown.</p>
             <p class="help-editors"><span class="ui">Remove</span> (under an invoice number) takes that invoice out of Invoice Entry, for example a cancelled one. Its PDF stays in Drive, and it can be uploaded again.</p>

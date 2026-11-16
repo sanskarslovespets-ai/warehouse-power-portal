@@ -270,7 +270,7 @@ def entries():
         problem = "Couldn't read the boxes used that were entered, so SKU used shows \"—\". Reload to try again."
     if usage is None:
         for row in rows:
-            row["used"] = None
+            row["used"], row["used_in"] = None, []
         usage = []
     else:
         box_usage.add(rows, usage)

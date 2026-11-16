@@ -490,11 +490,27 @@ def test_a_months_boxes_are_dated_its_last_day(month, end):
     assert box_usage.month_end(month) == end
 
 
+def test_each_line_says_which_months_its_boxes_were_used_in():
+    rows = [{"warehouse": "MWH_Pun_Khed_001", "sku": "DBSUPTMUM006", "qty": q, "invoice_date": d,
+             "invoice_number": n, "line_no": 1}
+            for n, d, q in (("INV-1", "2026-09-05", 100.0), ("INV-2", "2026-10-02", 50.0), ("INV-3", "2026-10-20", 10.0))]
+    box_usage.add(rows, [{"warehouse": "MWH_Pun_Khed_001", "sku": "DBSUPTMUM006", "month": m, "used": u}
+                         for m, u in (("2026-09", 60), ("2026-10", 70), ("2026-11", 0), ("2026-12", 45))])
+    got = {r["invoice_number"]: (r["used"], r["used_in"]) for r in rows}
+    assert got == {
+        # September's 60 and the first 40 of October's 70 use up INV-1
+        "INV-1": (100, [{"month": "2026-09", "used": 60}, {"month": "2026-10", "used": 40}]),
+        # the rest of October; December's 45 finish INV-2 (20) and INV-3 (10), the other 15 go past INV-3's quantity
+        "INV-2": (50, [{"month": "2026-10", "used": 30}, {"month": "2026-12", "used": 20}]),
+        "INV-3": (25, [{"month": "2026-12", "used": 25}]),
+    }  # November's 0 shows nowhere
+
+
 def test_a_line_without_a_sku_has_no_usage():
     rows = [{"warehouse": "MWH_Pun_Khed_001", "sku": "", "qty": 5.0, "invoice_date": "2026-10-01",
              "invoice_number": "INV-9", "line_no": 1}]
     box_usage.add(rows, [{"warehouse": "MWH_Pun_Khed_001", "sku": "", "month": "2026-10", "used": 3}])
-    assert rows[0]["used"] is None
+    assert rows[0]["used"] is None and rows[0]["used_in"] == []
 
 
 def test_sku_used_can_go_past_the_quantity_bought():
