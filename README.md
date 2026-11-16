@@ -366,14 +366,13 @@ viewers only see it.
 - **Analytics** (the first view, `static/js/boxvault_analytics.js`): Invoice
   Entry's lines totalled in the browser, with warehouse, month and item filters
   (clicking a bar filters too):
-  - **KPIs:** spend, invoices, average invoice, and boxes bought, used, used %
-    (used ÷ bought) and left. The stock table has a Used % column too.
+  - **KPIs:** spend, invoices, average invoice, and boxes bought and used.
   - **Spend over time:** spend or quantity, by week or month, stacked by warehouse.
   - **Spend by warehouse and top items:** horizontal bars.
   - **Data checks:** invoices for one warehouse with identical lines (cancelled
     and re-issued?), SKUs whose price changed, more boxes used than bought, lines
     without a SKU, and SKUs with no ERP usage.
-  - **Stock by warehouse and SKU:** bought, used, left, price and spend.
+  - **Stock by warehouse and SKU:** bought, used, price and spend.
 
   Each warehouse keeps one colour whatever the filters (slots 1–7 of a
   palette validated for colour-blind separation on the card surface).
@@ -381,15 +380,15 @@ viewers only see it.
   fetched again every hour while the page is open; a page in a background tab
   refreshes when it's next looked at. The time of the last refresh is shown
   next to the views, and a failed hourly refresh keeps what's shown.
-- **SKU used / SKU used % / SKU left** (`box_usage.py`): counted from the ERP (`DN_DB_*`)
+- **SKU used** (`box_usage.py`): counted from the ERP (`DN_DB_*`)
   each time Invoice Entry loads. SKU used = completed delivery notes (`status =
   'Completed'`, `is_return = 0`) from the invoice's warehouse
   (`custom_mother_warehouse`) that carry the box's SKU as an item, dated on or
-  after the invoice date; one delivery note is one box. SKU used % = SKU used
-  ÷ quantity (red over 100%). SKU left = quantity − SKU used. When a warehouse has several invoices for a SKU, each box goes
-  against the oldest invoice dated on or before its delivery note that still has
-  boxes left, so none is counted twice; any beyond that go on the newest one,
-  whose SKU left goes below 0 (in red). If the ERP can't be read, the lines are
+  after the invoice date; one delivery note is one box. When a warehouse has
+  several invoices for a SKU, each box goes against the oldest invoice dated on
+  or before its delivery note that hasn't had all its boxes counted yet, so none
+  is counted twice; any beyond that go on the newest one, whose SKU used then
+  goes past its quantity (Analytics' data checks list those). If the ERP can't be read, the lines are
   still listed with "—" and a note. Box SKUs have rarely been put on delivery
   notes since June 2025 (one in October 2026, at Gurugram), so for now SKU used
   is mostly 0.

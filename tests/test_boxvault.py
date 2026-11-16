@@ -359,7 +359,8 @@ def test_a_pdf_invoice_is_uploaded_and_its_lines_listed_under_its_ship_to_wareho
         "description": "DEL Supertails 15*15*15 Printed 5 Ply carton box", "sku": "DBSUPTDEL006", "qty": 916.0,
         "tax_pct": 5.0, "tax_amount": 503.8, "total": 10579.8, "invoice_date": "2026-10-01",
         "invoice_number": "INV-20262642", "drive_link": "https://drive.example/INV-20262642.pdf", "uploaded_by": "tester"}]
-    assert (rows[0]["used"], rows[0]["left"], rows[0]["used_pct"]) == (0, 916.0, 0.0)  # no delivery note has carried the box yet
+    assert rows[0]["used"] == 0  # no delivery note has carried the box yet
+    assert "left" not in rows[0] and "used_pct" not in rows[0]
 
 
 def test_an_invoice_already_entered_is_neither_entered_nor_uploaded_again(main, accounts, drive, entries):
@@ -423,7 +424,7 @@ def test_invoice_entry_failing_to_load_says_so(main, accounts, monkeypatch):
     assert (r.status_code, r.json()["error"]) == (502, "Could not read Invoice Entry from the database. Please try again.")
 
 
-# ------------------------------------------------------------------ SKU used / SKU left (box_usage.py)
+# ------------------------------------------------------------------ SKU used (box_usage.py)
 
 def test_sku_used_counts_the_warehouses_delivery_notes_since_the_invoice(main, accounts, drive, entries, erp):
     c = client(main, accounts, "tester")
@@ -433,7 +434,7 @@ def test_sku_used_counts_the_warehouses_delivery_notes_since_the_invoice(main, a
 
     data = c.get("/api/boxvault/entries").json()
     assert data["usage_problem"] is None
-    assert [(r["used"], r["left"], r["used_pct"]) for r in data["rows"]] == [(7, 909.0, 0.8)]  # 7 / 916 = 0.76%
+    assert [r["used"] for r in data["rows"]] == [7]
     assert erp.asked == [({"DBSUPTDEL006"}, {"MWH_Ggn_bhajgera_001"}, date(2026, 10, 1))]
 
 
@@ -446,15 +447,15 @@ def test_boxes_count_against_the_oldest_invoice_first_so_none_is_counted_twice(m
     erp.days[("MWH_Pun_Khed_001", "DBSUPTMUM006")] = [(date(2026, 10, 9), 5)]
 
     rows = c.get("/api/boxvault/entries").json()["rows"]
-    got = {r["invoice_number"]: (r["used"], r["left"], r["used_pct"]) for r in rows}
+    got = {r["invoice_number"]: r["used"] for r in rows}
     # INV-1 takes the first 100 of Bhiwandi's 130, INV-2 the other 30; Pune counts only its own
-    assert got == {"INV-1": (100, 0.0, 100.0), "INV-2": (30, 20.0, 60.0), "INV-3": (5, 35.0, 12.5)}
+    assert got == {"INV-1": 100, "INV-2": 30, "INV-3": 5}
     assert erp.asked[-1][2] == date(2026, 10, 1)  # one query, from the earliest invoice
 
 
 @pytest.mark.parametrize("invoices, days, used", [
     ([(date(2026, 10, 10), 100)], [(date(2026, 10, 9), 8), (date(2026, 10, 10), 2)], [2]),  # before the invoice: not its box
-    ([(date(2026, 10, 1), 10)], [(date(2026, 10, 2), 15)], [15]),  # more than bought: SKU left goes to -5
+    ([(date(2026, 10, 1), 10)], [(date(2026, 10, 2), 15)], [15]),  # more than bought: SKU used goes past the quantity
     # a box can't be from an invoice dated after it went out, even when the older invoice is used up
     ([(date(2026, 10, 1), 10), (date(2026, 10, 20), 10)], [(date(2026, 10, 5), 12), (date(2026, 10, 21), 3)], [12, 3]),
     ([(date(2026, 10, 1), 10), (date(2026, 10, 1), 10)], [(date(2026, 10, 2), 25)], [10, 15]),  # beyond both: the newest
@@ -468,7 +469,7 @@ def test_a_line_without_a_sku_has_no_usage_and_isnt_asked_of_the_erp(erp):
     rows = [{"warehouse": "MWH_Pun_Khed_001", "sku": "", "qty": 5.0, "invoice_date": "2026-10-01",
              "invoice_number": "INV-9", "line_no": 1}]
     box_usage.add(rows)
-    assert (rows[0]["used"], rows[0]["left"], rows[0]["used_pct"]) == (None, None, None) and erp.asked == []
+    assert rows[0]["used"] is None and erp.asked == []
 
 
 def test_when_the_erp_cant_be_read_the_lines_are_still_listed_and_the_page_hears(main, accounts, drive, entries, erp):
@@ -477,10 +478,9 @@ def test_when_the_erp_cant_be_read_the_lines_are_still_listed_and_the_page_hears
     erp.fail = True
     r = c.get("/api/boxvault/entries")
     assert r.status_code == 200
-    assert [(row["invoice_number"], row["used"], row["left"], row["used_pct"]) for row in r.json()["rows"]] == [
-        ("INV-20262642", None, None, None)]
+    assert [(row["invoice_number"], row["used"]) for row in r.json()["rows"]] == [("INV-20262642", None)]
     assert r.json()["usage_problem"] == (
-        "Couldn't read the ERP's delivery notes, so SKU used, SKU used % and SKU left show \"—\". Reload to try again.")
+        "Couldn't read the ERP's delivery notes, so SKU used shows \"—\". Reload to try again.")
 
 
 def test_the_erp_query_is_the_teams_delivery_note_count(monkeypatch):
@@ -522,9 +522,10 @@ def test_the_erp_query_is_the_teams_delivery_note_count(monkeypatch):
     assert Conn.closed
 
 
-def test_sku_used_percent_is_used_over_quantity_and_can_go_past_100(erp):
+def test_sku_used_can_go_past_the_quantity_bought(erp):
     erp.days[("MWH_Pun_Khed_001", "DBSUPTMUM006")] = [(date(2026, 10, 2), 3), (date(2026, 10, 9), 9)]
     rows = [{"warehouse": "MWH_Pun_Khed_001", "sku": "DBSUPTMUM006", "qty": 9.0, "invoice_date": "2026-10-01",
              "invoice_number": "INV-7", "line_no": 1}]
     box_usage.add(rows)
-    assert (rows[0]["used"], rows[0]["left"], rows[0]["used_pct"]) == (12, -3.0, 133.3)  # more used than bought
+    assert rows[0]["used"] == 12  # more used than bought, which Analytics' data checks list
+    assert "left" not in rows[0] and "used_pct" not in rows[0]

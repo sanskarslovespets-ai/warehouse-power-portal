@@ -804,7 +804,7 @@ def boxvault_upload(request: Request, files: Annotated[list[UploadFile] | None, 
 
 @app.get("/api/boxvault/entries")
 def boxvault_entries():
-    """Invoice Entry: every uploaded invoice's line items, with SKU used / SKU left from the ERP."""
+    """Invoice Entry: every uploaded invoice's line items, with SKU used from the ERP."""
     try:
         return boxvault.entries()
     except Exception:

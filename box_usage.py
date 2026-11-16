@@ -1,4 +1,4 @@
-"""BoxVault's SKU used / SKU left: how many of an invoice's boxes have gone out, counted from the ERP.
+"""BoxVault's SKU used: how many of an invoice's boxes have gone out, counted from the ERP.
 
 An order shipped in a box has the box's SKU (a "Package Box" item such as DBSUPTDEL006) on its delivery note,
 so one completed delivery note carrying the SKU is one box used. Counted for the invoice's warehouse (the
@@ -9,9 +9,9 @@ delivery note's custom_mother_warehouse, the ERP code BoxVault keeps an invoice 
     WHERE dni.item_code = 'DBSUPTDEL006' AND dn.custom_mother_warehouse = 'MWH_Ggn_bhajgera_001'
       AND dn.status = 'Completed' AND dn.is_return = 0 AND dn.posting_date >= '<invoice date>'
 
-SKU left = the invoice's quantity - SKU used, and SKU used % = SKU used / quantity. When a warehouse has several
-invoices for a SKU, each box goes against the oldest invoice dated on or before its delivery note that still has boxes left, so no box is
-counted twice; boxes beyond what those invoices bought go on the newest of them, whose SKU left goes below 0.
+When a warehouse has several invoices for a SKU, each box goes against the oldest invoice dated on or before its
+delivery note that hasn't had all its boxes counted yet, so no box is counted twice; boxes beyond what those invoices
+bought go on the newest of them, whose SKU used then goes past its quantity.
 """
 from collections import defaultdict
 from datetime import date
@@ -71,12 +71,11 @@ def allocate(invoices, days):
 
 
 def add(rows):
-    """Puts "used", "left" and "used_pct" (used as a % of the quantity, to 1 decimal place) on each Invoice Entry
-    row ({warehouse, sku, qty, invoice_date, invoice_number, line_no}); None on a line without a SKU. Raises if
-    the ERP can't be read."""
+    """Puts "used" (SKU used) on each Invoice Entry row ({warehouse, sku, qty, invoice_date, invoice_number,
+    line_no}); None on a line without a SKU. Raises if the ERP can't be read."""
     groups = defaultdict(list)
     for row in rows:
-        row["used"] = row["left"] = row["used_pct"] = None
+        row["used"] = None
         if row["sku"]:
             groups[(row["warehouse"], row["sku"])].append(row)
     if not groups:
@@ -88,5 +87,3 @@ def add(rows):
         used = allocate([(date.fromisoformat(r["invoice_date"]), r["qty"]) for r in lines], out.get(key, []))
         for row, n in zip(lines, used):
             row["used"] = n
-            row["left"] = row["qty"] - n
-            row["used_pct"] = round(100 * n / row["qty"], 1) if row["qty"] else None
