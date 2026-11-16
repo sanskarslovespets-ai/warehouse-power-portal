@@ -39,6 +39,7 @@ import analytics_mdnd
 import auth
 import analytics_recon
 import analytics_status
+import box_usage
 import boxvault
 import breach_explorer
 import control_tower
@@ -780,7 +781,8 @@ def control_tower_data(request: Request):
 
 
 # BoxVault (boxvault.py): Upload invoices puts a warehouse's invoice files in Google Drive, and the PDF invoices'
-# line items in Invoice Entry (invoice_pdf.py reads them, invoice_entries.py keeps them).
+# line items in Invoice Entry (invoice_pdf.py reads them, invoice_entries.py keeps them). Enter usage keeps the
+# boxes used per warehouse, SKU and month, which SKU used comes from (box_usage.py).
 @app.get("/api/boxvault")
 def boxvault_settings():
     """The warehouse dropdown, the file types it takes, and whether uploads are set up here."""
@@ -804,7 +806,7 @@ def boxvault_upload(request: Request, files: Annotated[list[UploadFile] | None, 
 
 @app.get("/api/boxvault/entries")
 def boxvault_entries():
-    """Invoice Entry: every uploaded invoice's line items, with SKU used from the ERP."""
+    """Invoice Entry: every uploaded invoice's line items, with SKU used from the boxes used entered."""
     try:
         return boxvault.entries()
     except Exception:
@@ -823,6 +825,31 @@ def boxvault_remove(supplier_gstin: str = "", invoice_number: str = ""):
     if not removed:
         raise HTTPException(404, f"Invoice {invoice_number} isn't in Invoice Entry.")
     return {"removed": removed}
+
+
+class UsageForm(BaseModel):
+    """Enter usage: the month ("YYYY-MM") and [{"warehouse", "sku", "used"}], checked in boxvault.save_usage."""
+    month: str = ""
+    numbers: list[dict] = []
+
+
+@app.post("/api/boxvault/usage")
+def boxvault_usage(form: UsageForm, request: Request):
+    """Saves how many boxes of each SKU warehouses used in a month, replacing what was entered before."""
+    try:
+        saved = boxvault.save_usage(form.month, form.numbers, by=_access(request).username)
+    except boxvault.Refused as e:
+        raise HTTPException(400, str(e))
+    except box_usage.NotSetUp:
+        raise HTTPException(503, "Boxes used can't be saved yet: the scm.boxvault_sku_usage table hasn't been made. "
+                                 "Ask an admin.")
+    except box_usage.NotAllowed:
+        raise HTTPException(503, "The portal's database account isn't allowed to save boxes used (it needs SELECT, "
+                                 "INSERT and UPDATE on scm.boxvault_sku_usage). Ask a database admin.")
+    except Exception:
+        traceback.print_exc()
+        raise HTTPException(502, "Could not save the boxes used to the database. Please try again.")
+    return {"saved": saved}
 
 
 class EntryForm(BaseModel):

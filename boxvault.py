@@ -7,12 +7,15 @@ are saved for that warehouse (invoice_entries.py), and one already entered isn't
 into the Drive folder DRIVE_INVOICE_FOLDER_ID, inside a folder named after the warehouse's ERP code (made the
 first time that warehouse gets an invoice), or "Unsorted" when no warehouse could be read from it, under the
 name it was uploaded with; the Drive file's description says who uploaded it.
+
+SKU used comes from the boxes used that editors enter for each warehouse, SKU and month (save_usage, box_usage.py).
 """
 import mimetypes
 import os
 import re
 import threading
 import traceback
+from datetime import datetime, timedelta, timezone
 
 import box_usage
 import google_services
@@ -20,8 +23,7 @@ import invoice_entries
 import invoice_pdf
 
 # The warehouses an invoice can be for, in this order on the page: {ERP warehouse code: the name shown}.
-# Each is kept under its ERP code (the Drive folder, Invoice Entry; the ERP's delivery notes have it as
-# custom_mother_warehouse, which box_usage.py counts SKU used by);
+# Each is kept under its ERP code (the Drive folder, Invoice Entry, the boxes used entered);
 # WH_Delhi_002, the name the team uses for Gurgaon, is MWH_Ggn_bhajgera_001 in the ERP.
 WAREHOUSES = {
     "MWH_Blr_Neelmangla_002": "MWH_Blr_Neelmangla_002",
@@ -54,12 +56,15 @@ CITIES = {
     "MWH_Pun_Khed_001": ("Pune", "Khed"),
     "MWH_Ggn_bhajgera_001": ("Gurugram", "Gurgaon", "Bajghera"),
 }
+IST = timezone(timedelta(hours=5, minutes=30))  # what "this month" means for Enter usage
 UNSORTED = "Unsorted"  # the Drive folder for files no warehouse could be read from
 # What an invoice may be: a PDF, a photo or scan, or a spreadsheet. Anything else (.html, .exe, ...) is
 # refused rather than dropped into a shared Drive folder.
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".xlsx", ".xls", ".csv")
 MAX_FILES = 20  # per upload; all of them together are also held to main.MAX_CONTENT_LENGTH
 MAX_NAME_LENGTH = 150
+MAX_USAGE_ROWS = 500  # numbers in one save of boxes used
+MAX_BOXES = 10_000_000  # a month's boxes of one SKU at one warehouse; anything more is a typing slip
 FOLDER_SETTING = "DRIVE_INVOICE_FOLDER_ID"
 
 _folders = {}  # {folder name (a warehouse, or UNSORTED): its Drive folder id}, found or made once per process
@@ -244,19 +249,58 @@ def _enter(invoice, reason, warehouse, name, link, by):
 
 def entries():
     """Invoice Entry for the page: {"rows": every line, with the name the dropdown gives its warehouse and its SKU
-    used (box_usage.py), "usage_problem": why that's missing, or None}.
+    used (box_usage.py); "usage": the boxes used entered, for Enter usage; "usage_ready": whether they can be saved
+    here; "usage_problem": what's wrong with SKU used, or None}.
 
-    The lines come from scm and the usage from the ERP, so if the ERP can't be read the lines are still listed.
+    If the boxes used can't be read, the lines are still listed, with SKU used as None.
     """
     rows = invoice_entries.rows()
     for row in rows:
         row["warehouse_name"] = WAREHOUSES.get(row["warehouse"], row["warehouse"])
-    problem = None
+    usage, ready, problem = [], True, None
     try:
-        box_usage.add(rows)
+        usage = box_usage.records()
+    except box_usage.NotSetUp:
+        ready = False
+        problem = ("Boxes used can't be entered yet: the scm.boxvault_sku_usage table hasn't been made, so SKU used "
+                   "is 0 for now. Ask an admin.")
     except Exception:
         traceback.print_exc()
+        usage = None
+        problem = "Couldn't read the boxes used that were entered, so SKU used shows \"—\". Reload to try again."
+    if usage is None:
         for row in rows:
             row["used"] = None
-        problem = "Couldn't read the ERP's delivery notes, so SKU used shows \"—\". Reload to try again."
-    return {"rows": rows, "usage_problem": problem}
+        usage = []
+    else:
+        box_usage.add(rows, usage)
+    return {"rows": rows, "usage": usage, "usage_ready": ready, "usage_problem": problem}
+
+
+def save_usage(month, numbers, by):
+    """Enter usage: [{"warehouse", "sku", "used"}] for `month` ("YYYY-MM", not after this month), each replacing
+    what was entered before. Refused, saying what to fix, if any of it is wrong; nothing is saved then."""
+    try:
+        first = datetime.strptime(month or "", "%Y-%m").date()
+    except ValueError:
+        raise Refused("Choose the month the boxes were used in.")
+    if first > datetime.now(IST).date().replace(day=1):
+        raise Refused("Boxes used can't be entered for a month that hasn't started yet.")
+    if not numbers:
+        raise Refused("Enter at least one number of boxes used.")
+    if len(numbers) > MAX_USAGE_ROWS:
+        raise Refused(f"Save at most {MAX_USAGE_ROWS} numbers at a time.")
+    clean, seen = [], set()
+    for n in numbers:
+        warehouse, sku, used = n.get("warehouse"), (n.get("sku") or "").strip(), n.get("used")
+        if warehouse not in WAREHOUSES:
+            raise Refused(f"{warehouse or 'A blank warehouse'} isn't one of BoxVault's warehouses.")
+        if not sku or len(sku) > 64:
+            raise Refused("Each number needs the SKU it's for.")
+        if isinstance(used, bool) or not isinstance(used, int) or not 0 <= used <= MAX_BOXES:
+            raise Refused(f"Boxes used for {sku} must be a whole number, 0 or more.")
+        if (warehouse, sku) in seen:
+            raise Refused(f"{sku} at {WAREHOUSES[warehouse]} is in the list twice.")
+        seen.add((warehouse, sku))
+        clean.append((warehouse, sku, used))
+    return box_usage.save(first, clean, by)

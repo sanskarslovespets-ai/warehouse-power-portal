@@ -1070,6 +1070,7 @@
           <h2 class="panel-title">BoxVault</h2>
         </div>
         <div class="bx-head-side">
+          <button type="button" id="bv-enter-usage" class="btn btn-secondary btn-sm edit-only" disabled>Enter usage</button>
           <button type="button" id="bv-upload" class="btn btn-primary btn-sm edit-only" disabled>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
             Upload invoices
@@ -1115,7 +1116,7 @@
               <th title="Amount before tax, plus tax">Total amount</th>
               <th class="ct-left">Invoice date</th>
               <th class="ct-left">Invoice</th>
-              <th title="Completed ERP delivery notes from this warehouse carrying this SKU since the invoice date (1 delivery note = 1 box)">SKU used</th>
+              <th title="Boxes used, from the numbers entered for this warehouse and SKU (Enter usage), counted against the oldest invoice first">SKU used</th>
             </tr></thead>
             <tbody id="bv-rows"></tbody>
           </table></div>
@@ -1125,7 +1126,7 @@
           One row per line item of each uploaded PDF invoice, under the warehouse its Ship To address names (by the warehouse's pincode, or the city). The invoice number opens the PDF in Google Drive.
           An invoice is read only if its lines add up to its Sub Total and, with tax, to its Total; one already here isn't added (or uploaded) again.
           <strong>Total amount</strong> = the line's amount before tax plus its tax (IGST, or CGST and SGST).
-          <strong>SKU used</strong> = the ERP's completed delivery notes (not returns) from the invoice's warehouse that carry the box's SKU, dated on or after the invoice date: one delivery note is one box.
+          <strong>SKU used</strong> = the boxes used entered for the warehouse and SKU (with <strong>Enter usage</strong>, or after uploading), for the invoice's month and later.
           When a warehouse has more than one invoice for a SKU, boxes count against the oldest invoice first, so none is counted twice.
         </footer>
       </div>
@@ -1155,7 +1156,7 @@
         <footer class="note">
           Everything here is worked out from Invoice Entry's lines, for the filters above. <strong>Spend</strong> is the invoices' total amount (before tax plus GST).
           <strong>Price per box</strong> is the amount before tax divided by the quantity bought.
-          <strong>Used</strong> is Invoice Entry's SKU used added up (completed ERP delivery notes carrying the box's SKU since its invoice).
+          <strong>Used</strong> is Invoice Entry's SKU used added up (the boxes used entered with Enter usage).
         </footer>
       </div>
     </div>
@@ -2064,10 +2065,18 @@
               <dt class="ui">Quantity, Tax %, Tax amount</dt><dd>From the invoice line (Tax is IGST, or CGST plus SGST).</dd>
               <dt class="ui">Total amount</dt><dd>The line's amount before tax plus its tax.</dd>
               <dt class="ui">Invoice date, Invoice</dt><dd>The invoice number opens the PDF in Google Drive.</dd>
-              <dt class="ui">SKU used</dt><dd>Boxes used: the ERP's completed delivery notes (not returns) from that warehouse that carry the box's SKU, dated on or after the invoice date. One delivery note is one box.</dd>
+              <dt class="ui">SKU used</dt><dd>Boxes used, from the numbers entered for that warehouse and SKU (see <em>Entering boxes used</em> below), from the invoice's month on.</dd>
             </dl>
-            <p>When a warehouse has several invoices for the same SKU, boxes count against the oldest invoice first, so no box is counted twice. Use the warehouse filter and the search box (invoice, SKU or item) to narrow the list, and <span class="ui">Export CSV</span> to download what's shown.</p>
+            <p>When a warehouse has several invoices for the same SKU, boxes count against the oldest invoice first, so no box is counted twice. A month's boxes count only against invoices dated by the end of that month. Use the warehouse filter and the search box (invoice, SKU or item) to narrow the list, and <span class="ui">Export CSV</span> to download what's shown.</p>
             <p class="help-editors"><span class="ui">Remove</span> (under an invoice number) takes that invoice out of Invoice Entry, for example a cancelled one. Its PDF stays in Drive, and it can be uploaded again.</p>
+
+            <h4 class="help-editors">Entering boxes used</h4>
+            <ul>
+              <li>After an upload that adds invoices, the dialog moves on to a table of their SKUs. Type how many boxes of each were used in the month shown, and click <span class="ui">Save</span>, or <span class="ui">Skip</span> to do it later.</li>
+              <li><span class="ui">Enter usage</span> (next to Upload invoices) opens the same table for every SKU, any time. Pick the <span class="ui">Month</span> and, if you like, a warehouse.</li>
+              <li>The month is this month to start with. Pick an earlier one to fill in past months; months that haven't started can't be chosen. Only SKUs on invoices dated by the end of the month are listed, with the quantity bought by then.</li>
+              <li>One number per warehouse, SKU and month. Typing a new number replaces the old one; type 0 for none. Leaving a box empty keeps what's there.</li>
+            </ul>
 
             <h4>Analytics</h4>
             <dl>
@@ -2078,13 +2087,15 @@
               <dt class="ui">Spend over time</dt><dd>Spend or <span class="ui">Quantity</span>, by <span class="ui">Week</span> or <span class="ui">Month</span> of invoice date, split by warehouse. Weeks start on Monday, so a week labelled 28 Sep holds 1–4 Oct. <span class="ui">Table view</span> shows the numbers.</dd>
               <dt class="ui">Spend by warehouse</dt><dd>Each warehouse's spend. It ignores the warehouse filter, so you can compare.</dd>
               <dt class="ui">Top items by spend</dt><dd>The eight SKUs with the most spend; the caption says what the rest come to.</dd>
-              <dt class="ui">Data checks</dt><dd>Invoices for one warehouse with exactly the same lines (often a cancelled and re-issued invoice), SKUs whose price changed between invoices, more boxes used than bought, lines without a SKU, and SKUs with no usage in the ERP.</dd>
+              <dt class="ui">Data checks</dt><dd>Invoices for one warehouse with exactly the same lines (often a cancelled and re-issued invoice), SKUs whose price changed between invoices, more boxes used than bought, lines without a SKU, and SKUs with no boxes used entered.</dd>
               <dt class="ui">Stock by warehouse and SKU</dt><dd>Each SKU's bought, used, <span class="ui">Price per box</span> (amount before tax ÷ quantity), spend and last invoice date.</dd>
             </dl>
 
             <h4>Common questions</h4>
-            <details><summary>Why is SKU used 0 everywhere?</summary>
-              <p>SKU used counts delivery notes that carry the box's SKU, and the ERP has almost stopped adding box SKUs to delivery notes (rarely since June 2025, and none from October 2026). The count will start moving once boxes are added to delivery notes at packing again. Nothing in the portal can fix this.</p></details>
+            <details><summary>Why is SKU used 0?</summary>
+              <p>SKU used comes only from the boxes used that editors enter. It's 0 until someone enters them for that warehouse and SKU, for the invoice's month or a later one. Use <span class="ui">Enter usage</span>.</p></details>
+            <details><summary>I entered boxes used but SKU used didn't change.</summary>
+              <p>Boxes count only against invoices dated by the end of the month they were entered for. If you entered them for a month before the invoice, they aren't counted against it. Enter them for the right month.</p></details>
             <details><summary>My invoice wasn't added. Why?</summary>
               <p>The upload message gives the reason. The usual ones:</p>
               <ul>
@@ -2296,7 +2307,8 @@
     </div>
   </div>
 
-  <!-- BoxVault's Upload invoices (static/js/boxvault.js). -->
+  <!-- BoxVault's Upload invoices and Enter usage (static/js/boxvault.js): #bv-form picks the files; #bv-usage-form,
+       shown after an upload or by Enter usage, takes the boxes of each SKU used in a month. -->
   <div id="bv-modal" class="modal-overlay hidden">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bv-modal-title">
       <div class="modal-header">
@@ -2316,6 +2328,34 @@
         <div class="modal-footer">
           <button type="button" id="bv-cancel" class="btn btn-secondary">Cancel</button>
           <button type="submit" id="bv-submit" class="btn btn-primary">Upload</button>
+        </div>
+      </form>
+
+      <form id="bv-usage-form" class="modal-body bx" novalidate hidden>
+        <div id="bv-usage-error" class="form-error hidden"></div>
+        <p id="bv-usage-intro" class="bv-usage-intro"></p>
+        <div class="bv-usage-controls">
+          <label for="bv-usage-month">Month</label>
+          <input type="month" id="bv-usage-month" class="ct-select">
+          <select id="bv-usage-wh" class="ct-select" aria-label="Warehouse"></select>
+        </div>
+        <div class="bv-usage-box">
+          <table id="bv-usage-table">
+            <thead><tr>
+              <th class="ct-left">Warehouse</th>
+              <th class="ct-left">SKU</th>
+              <th class="ct-left">Item</th>
+              <th title="Quantity on this warehouse's invoices for the SKU, dated by the end of the month">Bought</th>
+              <th id="bv-usage-head">Used</th>
+            </tr></thead>
+            <tbody id="bv-usage-rows"></tbody>
+          </table>
+          <p id="bv-usage-empty" class="bv-usage-empty" hidden></p>
+        </div>
+        <p class="field-hint">Leave a box empty to keep what's there. To correct a number, type the new one (0 for none).</p>
+        <div class="modal-footer">
+          <button type="button" id="bv-usage-cancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="bv-usage-save" class="btn btn-primary">Save</button>
         </div>
       </form>
     </div>

@@ -1,8 +1,8 @@
 """BoxVault (boxvault.py, /api/boxvault*): Upload invoices (what's checked, where files go in Drive, partial
-failures, who may upload) and Invoice Entry (PDF invoices' lines saved, listed and taken out). Google Drive and
-scm.boxvault_invoice_lines are stand-ins that record what they were sent, and so is the ERP that SKU used is
-counted from (box_usage.py)."""
-from datetime import date
+failures, who may upload), Invoice Entry (PDF invoices' lines saved, listed and taken out) and the boxes used
+entered, which SKU used comes from (box_usage.py). Google Drive, scm.boxvault_invoice_lines and
+scm.boxvault_sku_usage are stand-ins that record what they were sent."""
+from datetime import date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,7 +16,7 @@ from pdf_fixture import make_pdf
 LOCAL = ("127.0.0.1", 50000)
 FOLDER = "invoices-folder-id"
 NOT_PDF = "only PDF invoices are read into Invoice Entry"
-REAL_SHIPPED = box_usage.shipped  # the erp fixture stands in for it in every other test
+REAL_RECORDS, REAL_SAVE = box_usage.records, box_usage.save  # the usage fixture stands in for them elsewhere
 
 # Ship To addresses as the supplier's invoices print them
 GURUGRAM = ["Supertails-Pets Centric Private Limited, PLOT NO 186, VPO BAJGHERA", "BAJGHERA,", "Gurugram",
@@ -84,25 +84,41 @@ def entries(monkeypatch):
     return fake
 
 
-class FakeErp:
-    """box_usage.shipped(): the ERP's completed delivery notes carrying a box SKU, as {(warehouse, sku): [(day, n)]}."""
+class FakeUsage:
+    """scm.boxvault_sku_usage: {(warehouse, sku, "YYYY-MM"): (used, by)}, as box_usage.records() / save() keep it."""
 
     def __init__(self):
-        self.days = {}
-        self.asked = []  # (skus, warehouses, since) of each call
-        self.fail = False
+        self.numbers = {}
+        self.missing = False  # the table hasn't been made
+        self.fail = False  # reading raises, as if the database were down
+        self.denied = False  # saving is refused, as if the account had no INSERT/UPDATE
 
-    def shipped(self, skus, warehouses, since):
-        self.asked.append((set(skus), set(warehouses), since))
+    def set(self, warehouse, sku, month, used, by="tester"):
+        self.numbers[(warehouse, sku, month)] = (used, by)
+
+    def records(self):
+        if self.missing:
+            raise box_usage.NotSetUp
         if self.fail:
-            raise TimeoutError("ERP replica timed out")
-        return {key: days for key, days in self.days.items() if key[0] in warehouses and key[1] in skus}
+            raise RuntimeError("MySQL went away")
+        return [{"warehouse": w, "sku": sku, "month": m, "used": used, "entered_by": by,
+                 "entered_at": "2026-11-16 12:00:00"} for (w, sku, m), (used, by) in sorted(self.numbers.items(), key=lambda kv: kv[0][2])]
+
+    def save(self, month, numbers, by):
+        if self.missing:
+            raise box_usage.NotSetUp
+        if self.denied:
+            raise box_usage.NotAllowed
+        for warehouse, sku, used in numbers:
+            self.set(warehouse, sku, month.strftime("%Y-%m"), used, by)
+        return len(numbers)
 
 
 @pytest.fixture(autouse=True)
-def erp(monkeypatch):
-    fake = FakeErp()
-    monkeypatch.setattr(box_usage, "shipped", fake.shipped)
+def usage(monkeypatch):
+    fake = FakeUsage()
+    monkeypatch.setattr(box_usage, "records", fake.records)
+    monkeypatch.setattr(box_usage, "save", fake.save)
     return fake
 
 
@@ -424,108 +440,233 @@ def test_invoice_entry_failing_to_load_says_so(main, accounts, monkeypatch):
     assert (r.status_code, r.json()["error"]) == (502, "Could not read Invoice Entry from the database. Please try again.")
 
 
-# ------------------------------------------------------------------ SKU used (box_usage.py)
+# ------------------------------------------------------------------ boxes used and SKU used (box_usage.py)
 
-def test_sku_used_counts_the_warehouses_delivery_notes_since_the_invoice(main, accounts, drive, entries, erp):
+def test_sku_used_is_the_boxes_used_entered_for_the_warehouse_from_the_invoices_month(main, accounts, drive, entries,
+                                                                                       usage):
     c = client(main, accounts, "tester")
-    upload(c, ("INV-20262642.pdf", invoice_pdf()))
-    erp.days[("MWH_Ggn_bhajgera_001", "DBSUPTDEL006")] = [(date(2026, 10, 1), 3), (date(2026, 10, 20), 4)]
-    erp.days[("MWH_Pun_Khed_001", "DBSUPTDEL006")] = [(date(2026, 10, 5), 50)]  # another warehouse's boxes
+    upload(c, ("INV-20262642.pdf", invoice_pdf()))  # 916 boxes at Gurugram, 1 Oct 2026
+    usage.set("MWH_Ggn_bhajgera_001", "DBSUPTDEL006", "2026-10", 300)
+    usage.set("MWH_Ggn_bhajgera_001", "DBSUPTDEL006", "2026-11", 100)
+    usage.set("MWH_Ggn_bhajgera_001", "DBSUPTDEL006", "2026-09", 50)  # before the invoice: not its boxes
+    usage.set("MWH_Pun_Khed_001", "DBSUPTDEL006", "2026-10", 999)  # another warehouse's
 
     data = c.get("/api/boxvault/entries").json()
-    assert data["usage_problem"] is None
-    assert [r["used"] for r in data["rows"]] == [7]
-    assert erp.asked == [({"DBSUPTDEL006"}, {"MWH_Ggn_bhajgera_001"}, date(2026, 10, 1))]
+    assert [r["used"] for r in data["rows"]] == [400]
+    assert (data["usage_ready"], data["usage_problem"]) == (True, None)
+    assert {(u["warehouse"], u["month"], u["used"]) for u in data["usage"]} == {
+        ("MWH_Ggn_bhajgera_001", "2026-09", 50), ("MWH_Ggn_bhajgera_001", "2026-10", 300),
+        ("MWH_Ggn_bhajgera_001", "2026-11", 100), ("MWH_Pun_Khed_001", "2026-10", 999)}
 
 
-def test_boxes_count_against_the_oldest_invoice_first_so_none_is_counted_twice(main, accounts, drive, entries, erp):
+def test_boxes_count_against_the_oldest_invoice_first_so_none_is_counted_twice(main, accounts, drive, entries, usage):
     c = client(main, accounts, "tester")
     upload(c, ("a.pdf", invoice_pdf("INV-1", "DBSUPTMUM006", "100.00", "01/10/2026", ship_to=BHIWANDI)),
            ("b.pdf", invoice_pdf("INV-2", "DBSUPTMUM006", "50.00", "15/10/2026", ship_to=BHIWANDI)),
            ("c.pdf", invoice_pdf("INV-3", "DBSUPTMUM006", "40.00", "01/10/2026", ship_to=PUNE)))
-    erp.days[("MWH_Mum_Bhiwandi_002", "DBSUPTMUM006")] = [(date(2026, 10, 2), 60), (date(2026, 10, 16), 70)]
-    erp.days[("MWH_Pun_Khed_001", "DBSUPTMUM006")] = [(date(2026, 10, 9), 5)]
+    usage.set("MWH_Mum_Bhiwandi_002", "DBSUPTMUM006", "2026-10", 130)
+    usage.set("MWH_Pun_Khed_001", "DBSUPTMUM006", "2026-10", 5)
 
-    rows = c.get("/api/boxvault/entries").json()["rows"]
-    got = {r["invoice_number"]: r["used"] for r in rows}
-    # INV-1 takes the first 100 of Bhiwandi's 130, INV-2 the other 30; Pune counts only its own
+    got = {r["invoice_number"]: r["used"] for r in c.get("/api/boxvault/entries").json()["rows"]}
+    # INV-1 takes the first 100 of Bhiwandi's 130, INV-2 (dated in October too) the other 30; Pune counts only its own
     assert got == {"INV-1": 100, "INV-2": 30, "INV-3": 5}
-    assert erp.asked[-1][2] == date(2026, 10, 1)  # one query, from the earliest invoice
 
 
-@pytest.mark.parametrize("invoices, days, used", [
-    ([(date(2026, 10, 10), 100)], [(date(2026, 10, 9), 8), (date(2026, 10, 10), 2)], [2]),  # before the invoice: not its box
-    ([(date(2026, 10, 1), 10)], [(date(2026, 10, 2), 15)], [15]),  # more than bought: SKU used goes past the quantity
-    # a box can't be from an invoice dated after it went out, even when the older invoice is used up
-    ([(date(2026, 10, 1), 10), (date(2026, 10, 20), 10)], [(date(2026, 10, 5), 12), (date(2026, 10, 21), 3)], [12, 3]),
-    ([(date(2026, 10, 1), 10), (date(2026, 10, 1), 10)], [(date(2026, 10, 2), 25)], [10, 15]),  # beyond both: the newest
+@pytest.mark.parametrize("invoices, months, used", [
+    ([(date(2026, 10, 10), 100)], [(date(2026, 9, 30), 8), (date(2026, 10, 31), 2)], [2]),  # before the invoice
+    ([(date(2026, 10, 1), 10)], [(date(2026, 10, 31), 15)], [15]),  # more than bought: past the quantity
+    # a month's boxes can't be from an invoice dated after it, even when the older invoice is used up
+    ([(date(2026, 10, 1), 10), (date(2026, 11, 20), 10)], [(date(2026, 10, 31), 12), (date(2026, 11, 30), 3)], [12, 3]),
+    ([(date(2026, 10, 1), 10), (date(2026, 10, 1), 10)], [(date(2026, 10, 31), 25)], [10, 15]),  # beyond both: the newest
     ([(date(2026, 10, 1), 10)], [], [0]),
 ])
-def test_allocating_boxes_to_invoices(invoices, days, used):
-    assert box_usage.allocate(invoices, days) == used
+def test_allocating_boxes_to_invoices(invoices, months, used):
+    assert box_usage.allocate(invoices, months) == used
 
 
-def test_a_line_without_a_sku_has_no_usage_and_isnt_asked_of_the_erp(erp):
+@pytest.mark.parametrize("month, end", [("2026-10", date(2026, 10, 31)), ("2026-11", date(2026, 11, 30)),
+                                        ("2028-02", date(2028, 2, 29)), ("2026-12", date(2026, 12, 31))])
+def test_a_months_boxes_are_dated_its_last_day(month, end):
+    assert box_usage.month_end(month) == end
+
+
+def test_a_line_without_a_sku_has_no_usage():
     rows = [{"warehouse": "MWH_Pun_Khed_001", "sku": "", "qty": 5.0, "invoice_date": "2026-10-01",
              "invoice_number": "INV-9", "line_no": 1}]
-    box_usage.add(rows)
-    assert rows[0]["used"] is None and erp.asked == []
+    box_usage.add(rows, [{"warehouse": "MWH_Pun_Khed_001", "sku": "", "month": "2026-10", "used": 3}])
+    assert rows[0]["used"] is None
 
 
-def test_when_the_erp_cant_be_read_the_lines_are_still_listed_and_the_page_hears(main, accounts, drive, entries, erp):
+def test_sku_used_can_go_past_the_quantity_bought():
+    rows = [{"warehouse": "MWH_Pun_Khed_001", "sku": "DBSUPTMUM006", "qty": 9.0, "invoice_date": "2026-10-01",
+             "invoice_number": "INV-7", "line_no": 1}]
+    box_usage.add(rows, [{"warehouse": "MWH_Pun_Khed_001", "sku": "DBSUPTMUM006", "month": m, "used": n}
+                         for m, n in (("2026-10", 3), ("2026-11", 9))])
+    assert rows[0]["used"] == 12  # more used than bought, which Analytics' data checks list
+    assert "left" not in rows[0] and "used_pct" not in rows[0]
+
+
+def test_before_the_usage_table_is_made_sku_used_is_0_and_the_page_says_why(main, accounts, drive, entries, usage):
     c = client(main, accounts, "tester")
     upload(c, ("INV-20262642.pdf", invoice_pdf()))
-    erp.fail = True
+    usage.missing = True
+    data = c.get("/api/boxvault/entries").json()
+    assert [r["used"] for r in data["rows"]] == [0] and data["usage"] == [] and data["usage_ready"] is False
+    assert data["usage_problem"] == ("Boxes used can't be entered yet: the scm.boxvault_sku_usage table hasn't been "
+                                     "made, so SKU used is 0 for now. Ask an admin.")
+    r = c.post("/api/boxvault/usage", json={"month": "2026-10", "numbers": [
+        {"warehouse": "MWH_Ggn_bhajgera_001", "sku": "DBSUPTDEL006", "used": 5}]})
+    assert (r.status_code, r.json()["error"]) == (
+        503, "Boxes used can't be saved yet: the scm.boxvault_sku_usage table hasn't been made. Ask an admin.")
+
+
+def test_when_the_usage_cant_be_read_the_lines_are_still_listed_and_the_page_hears(main, accounts, drive, entries,
+                                                                                     usage):
+    c = client(main, accounts, "tester")
+    upload(c, ("INV-20262642.pdf", invoice_pdf()))
+    usage.fail = True
     r = c.get("/api/boxvault/entries")
     assert r.status_code == 200
     assert [(row["invoice_number"], row["used"]) for row in r.json()["rows"]] == [("INV-20262642", None)]
     assert r.json()["usage_problem"] == (
-        "Couldn't read the ERP's delivery notes, so SKU used shows \"—\". Reload to try again.")
+        "Couldn't read the boxes used that were entered, so SKU used shows \"—\". Reload to try again.")
 
 
-def test_the_erp_query_is_the_teams_delivery_note_count(monkeypatch):
-    sent = {}
+def test_an_editor_saves_boxes_used_for_a_month_and_sku_used_follows(main, accounts, drive, entries, usage):
+    accounts.add("eddie", "editor-pass", "editor", ["boxvault"])
+    c = client(main, accounts, "eddie")
+    upload(c, ("INV-20262642.pdf", invoice_pdf()))
+    r = c.post("/api/boxvault/usage", json={"month": "2026-10", "numbers": [
+        {"warehouse": "MWH_Ggn_bhajgera_001", "sku": "DBSUPTDEL006", "used": 120}]})
+    assert (r.status_code, r.json()) == (200, {"saved": 1})
+    assert usage.numbers == {("MWH_Ggn_bhajgera_001", "DBSUPTDEL006", "2026-10"): (120, "eddie")}
+    assert [row["used"] for row in c.get("/api/boxvault/entries").json()["rows"]] == [120]
 
-    class Cursor:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-        def execute(self, sql, args):
-            sent["sql"], sent["args"] = " ".join(sql.split()), args
-
-        def fetchall(self):
-            return [("MWH_Ggn_bhajgera_001", "DBSUPTDEL006", date(2026, 10, 3), 2),
-                    ("MWH_Ggn_bhajgera_001", "DBSUPTDEL006", date(2026, 10, 4), 1)]
-
-    class Conn:
-        closed = False
-
-        def cursor(self):
-            return Cursor()
-
-        def close(self):
-            Conn.closed = True
-
-    monkeypatch.setattr(box_usage, "get_dn_connection", lambda read_timeout=None: Conn())
-    out = REAL_SHIPPED({"DBSUPTDEL006", "DBSUPTDEL003"}, {"MWH_Ggn_bhajgera_001"}, date(2026, 10, 1))
-    assert out == {("MWH_Ggn_bhajgera_001", "DBSUPTDEL006"): [(date(2026, 10, 3), 2), (date(2026, 10, 4), 1)]}
-    sql = sent["sql"]
-    for part in ("COUNT(DISTINCT dni.parent)", "FROM `tabDelivery Note Item` dni",
-                 "JOIN `tabDelivery Note` dn ON dn.name = dni.parent", "dni.item_code IN (%s, %s)",
-                 "dn.custom_mother_warehouse IN (%s)", "dn.status = 'Completed'", "dn.is_return = 0",
-                 "dn.posting_date >= %s"):
-        assert part in sql
-    assert sent["args"] == ("DBSUPTDEL003", "DBSUPTDEL006", "MWH_Ggn_bhajgera_001", date(2026, 10, 1))
-    assert Conn.closed
+    # a new number for the same month replaces the old one
+    c.post("/api/boxvault/usage", json={"month": "2026-10", "numbers": [
+        {"warehouse": "MWH_Ggn_bhajgera_001", "sku": "DBSUPTDEL006", "used": 0}]})
+    assert [row["used"] for row in c.get("/api/boxvault/entries").json()["rows"]] == [0]
 
 
-def test_sku_used_can_go_past_the_quantity_bought(erp):
-    erp.days[("MWH_Pun_Khed_001", "DBSUPTMUM006")] = [(date(2026, 10, 2), 3), (date(2026, 10, 9), 9)]
-    rows = [{"warehouse": "MWH_Pun_Khed_001", "sku": "DBSUPTMUM006", "qty": 9.0, "invoice_date": "2026-10-01",
-             "invoice_number": "INV-7", "line_no": 1}]
-    box_usage.add(rows)
-    assert rows[0]["used"] == 12  # more used than bought, which Analytics' data checks list
-    assert "left" not in rows[0] and "used_pct" not in rows[0]
+def test_only_editors_with_the_boxvault_tab_can_enter_boxes_used(main, accounts, usage):
+    accounts.add("vee", "viewer-pass", "viewer", ["boxvault"])
+    accounts.add("other", "other-pass", "editor", ["rto"])
+    sent = {"month": "2026-10", "numbers": [{"warehouse": "MWH_Pun_Khed_001", "sku": "DBSUPTMUM006", "used": 1}]}
+    r = client(main, accounts, "vee").post("/api/boxvault/usage", json=sent)
+    assert (r.status_code, r.json()["error"]) == (403, "Your access to the BoxVault tab is view-only.")
+    assert client(main, accounts, "other").post("/api/boxvault/usage", json=sent).status_code == 403
+    assert usage.numbers == {}
+
+
+@pytest.mark.parametrize("sent, says", [
+    ({"month": "", "numbers": [{"warehouse": "MWH_Pun_Khed_001", "sku": "X", "used": 1}]},
+     "Choose the month the boxes were used in."),
+    ({"month": "2026-13", "numbers": [{"warehouse": "MWH_Pun_Khed_001", "sku": "X", "used": 1}]},
+     "Choose the month the boxes were used in."),
+    ({"month": "2026-12", "numbers": [{"warehouse": "MWH_Pun_Khed_001", "sku": "X", "used": 1}]},
+     "Boxes used can't be entered for a month that hasn't started yet."),
+    ({"month": "2026-10", "numbers": []}, "Enter at least one number of boxes used."),
+    ({"month": "2026-10", "numbers": [{"warehouse": "Jaipur", "sku": "X", "used": 1}]},
+     "Jaipur isn't one of BoxVault's warehouses."),
+    ({"month": "2026-10", "numbers": [{"warehouse": "MWH_Pun_Khed_001", "sku": " ", "used": 1}]},
+     "Each number needs the SKU it's for."),
+    ({"month": "2026-10", "numbers": [{"warehouse": "MWH_Pun_Khed_001", "sku": "X", "used": -1}]},
+     "Boxes used for X must be a whole number, 0 or more."),
+    ({"month": "2026-10", "numbers": [{"warehouse": "MWH_Pun_Khed_001", "sku": "X", "used": 2.5}]},
+     "Boxes used for X must be a whole number, 0 or more."),
+    ({"month": "2026-10", "numbers": [{"warehouse": "MWH_Pun_Khed_001", "sku": "X", "used": "7"}]},
+     "Boxes used for X must be a whole number, 0 or more."),
+    ({"month": "2026-10", "numbers": [{"warehouse": "MWH_Pun_Khed_001", "sku": "X", "used": 1},
+                                      {"warehouse": "MWH_Pun_Khed_001", "sku": "X", "used": 2}]},
+     "X at MWH_Pun_Khed_001 is in the list twice."),
+])
+def test_boxes_used_that_cant_be_taken_save_nothing_and_say_why(main, accounts, usage, monkeypatch, sent, says):
+    class November(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 11, 16, 12, 0, tzinfo=tz)
+
+    monkeypatch.setattr(boxvault, "datetime", November)
+    r = client(main, accounts, "tester").post("/api/boxvault/usage", json=sent)
+    assert (r.status_code, r.json()["error"]) == (400, says)
+    assert usage.numbers == {}
+
+
+def test_an_account_not_allowed_to_save_boxes_used_is_said_plainly(main, accounts, usage):
+    usage.denied = True
+    r = client(main, accounts, "tester").post("/api/boxvault/usage", json={"month": "2026-10", "numbers": [
+        {"warehouse": "MWH_Pun_Khed_001", "sku": "DBSUPTMUM006", "used": 1}]})
+    assert (r.status_code, r.json()["error"]) == (
+        503, "The portal's database account isn't allowed to save boxes used (it needs SELECT, INSERT and UPDATE on "
+             "scm.boxvault_sku_usage). Ask a database admin.")
+
+
+class FakeConn:
+    """A pymysql connection that records the SQL it's sent and answers `found`, or raises `error`."""
+
+    def __init__(self, found=(), error=None):
+        self.found, self.error, self.sent, self.committed, self.closed = list(found), error, [], False, False
+
+    def cursor(self):
+        conn = self
+
+        class Cursor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def execute(self, sql, args=None):
+                conn.sent.append((" ".join(sql.split()), args))
+                if conn.error:
+                    raise conn.error
+
+            executemany = execute
+
+            def fetchall(self):
+                return conn.found
+
+        return Cursor()
+
+    def commit(self):
+        self.committed = True
+
+    def close(self):
+        self.closed = True
+
+
+def test_saving_boxes_used_replaces_the_months_number(monkeypatch):
+    conn = FakeConn()
+    monkeypatch.setattr(box_usage, "get_scm_connection", lambda: conn)
+    assert REAL_SAVE(date(2026, 10, 1), [("MWH_Pun_Khed_001", "DBSUPTMUM006", 40)], "eddie") == 1
+    (sql, args), = conn.sent
+    assert sql.startswith("INSERT INTO boxvault_sku_usage (warehouse, sku, month, used, entered_by, entered_at) "
+                          "VALUES (%s, %s, %s, %s, %s, %s) AS new ON DUPLICATE KEY UPDATE used = new.used")
+    assert [a[:5] for a in args] == [("MWH_Pun_Khed_001", "DBSUPTMUM006", date(2026, 10, 1), 40, "eddie")]
+    assert conn.committed and conn.closed
+
+
+def test_the_usage_table_missing_or_refused_is_told_apart(monkeypatch):
+    from pymysql.constants import ER
+    from pymysql.err import OperationalError, ProgrammingError
+
+    missing = ProgrammingError(ER.NO_SUCH_TABLE, "Table 'scm.boxvault_sku_usage' doesn't exist")
+    monkeypatch.setattr(box_usage, "get_scm_connection", lambda: FakeConn(error=missing))
+    with pytest.raises(box_usage.NotSetUp):
+        REAL_RECORDS()
+    with pytest.raises(box_usage.NotSetUp):
+        REAL_SAVE(date(2026, 10, 1), [("MWH_Pun_Khed_001", "X", 1)], "eddie")
+    denied = OperationalError(ER.TABLEACCESS_DENIED_ERROR, "INSERT command denied to user")
+    monkeypatch.setattr(box_usage, "get_scm_connection", lambda: FakeConn(error=denied))
+    with pytest.raises(box_usage.NotAllowed):
+        REAL_SAVE(date(2026, 10, 1), [("MWH_Pun_Khed_001", "X", 1)], "eddie")
+
+
+def test_the_boxes_used_entered_are_read_as_months(monkeypatch):
+    conn = FakeConn(found=[("MWH_Pun_Khed_001", "DBSUPTMUM006", date(2026, 10, 1), 40, "eddie",
+                            datetime(2026, 11, 16, 12, 30))])
+    monkeypatch.setattr(box_usage, "get_scm_connection", lambda: conn)
+    assert REAL_RECORDS() == [{"warehouse": "MWH_Pun_Khed_001", "sku": "DBSUPTMUM006", "month": "2026-10", "used": 40,
+                               "entered_by": "eddie", "entered_at": "2026-11-16 12:30:00"}]
+    assert conn.closed

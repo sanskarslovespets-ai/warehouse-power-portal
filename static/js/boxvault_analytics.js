@@ -73,7 +73,7 @@
       (ignore.includes("sku") || !state.sku || r.sku === state.sku));
   }
 
-  // Used / left are null on every line when the ERP couldn't be read (boxvault.entries' usage_problem).
+  // Used is null on every line when the boxes used entered couldn't be read (boxvault.entries' usage_problem).
   const usageKnown = (list) => list.some((r) => r.sku) && list.every((r) => !r.sku || r.used != null);
 
   function setFilter(key, value) {
@@ -112,9 +112,9 @@
     const known = usageKnown(list);
     const used = known ? sum(list, "used") : null;
     const usedHint = known
-      ? "Completed ERP delivery notes carrying the box SKUs since their invoices (Invoice Entry's SKU used)." +
-        (used === 0 ? " None so far: the ERP isn't putting box SKUs on delivery notes." : "")
-      : "The ERP couldn't be read, so boxes used aren't known.";
+      ? "The boxes used entered with Enter usage, counted against these invoices (Invoice Entry's SKU used)." +
+        (used === 0 ? " None entered for these yet." : "")
+      : "The boxes used entered couldn't be read, so they aren't known.";
     return [
       { label: "Spend", value: formatRupees(spend), accent: ACCENT,
         hint: `${formatRupeesFull(spend)}, of which ${formatRupeesFull(sum(list, "tax_amount"))} GST` },
@@ -253,7 +253,7 @@
       { count: over.length, list: capped(over),
         text: `invoice ${over.length === 1 ? "line" : "lines"} with more boxes used than bought: an invoice may be missing` },
       { count: noSku, text: `${noSku === 1 ? "line" : "lines"} without a SKU, so no usage can be counted for ${noSku === 1 ? "it" : "them"}` },
-      { count: unused, text: `${unused === 1 ? "SKU" : "SKUs"} with no boxes used in the ERP since ${unused === 1 ? "its" : "their"} invoice: boxes aren't being put on delivery notes` },
+      { count: unused, text: `${unused === 1 ? "SKU" : "SKUs"} with no boxes used entered since ${unused === 1 ? "its" : "their"} invoice: add them with Enter usage` },
     ], "Worth a second look, for these filters");
   }
 

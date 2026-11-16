@@ -1,8 +1,35 @@
 """BoxVault's Invoice Entry: each uploaded invoice's line items, kept in scm.boxvault_invoice_lines.
 
 One row per line item, with the warehouse it was uploaded for and a link to its PDF in Drive. An invoice is
-known by its supplier's GSTIN and its number, so the same invoice can't be entered twice. The table is
-created by the first invoice saved (as users.py does with warehouse_user_access); until then there are none.
+known by its supplier's GSTIN and its number, so the same invoice can't be entered twice.
+
+The table is made by hand (the portal doesn't create tables), and the portal's database account needs SELECT,
+INSERT and DELETE on it:
+
+    CREATE TABLE scm.boxvault_invoice_lines (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        supplier_gstin VARCHAR(15) NOT NULL,
+        invoice_number VARCHAR(64) NOT NULL,
+        line_no SMALLINT NOT NULL,
+        warehouse VARCHAR(64) NOT NULL,
+        invoice_date DATE NOT NULL,
+        supplier VARCHAR(255) NOT NULL,
+        description VARCHAR(512) NOT NULL,
+        sku VARCHAR(64) NOT NULL,
+        hsn VARCHAR(16) NOT NULL,
+        qty DECIMAL(14, 2) NOT NULL,
+        rate DECIMAL(14, 2) NOT NULL,
+        tax_pct DECIMAL(6, 2) NOT NULL,
+        tax_amount DECIMAL(14, 2) NOT NULL,
+        amount DECIMAL(14, 2) NOT NULL COMMENT 'before tax',
+        total DECIMAL(14, 2) NOT NULL COMMENT 'amount + tax',
+        file_name VARCHAR(255) NOT NULL,
+        drive_link VARCHAR(512) NOT NULL,
+        uploaded_by VARCHAR(64) NOT NULL,
+        uploaded_at DATETIME NOT NULL,
+        UNIQUE KEY uq_invoice_line (supplier_gstin, invoice_number, line_no),
+        KEY idx_warehouse_sku (warehouse, sku)
+    ) COMMENT 'BoxVault Invoice Entry (Warehouse Power Portal, invoice_entries.py)';
 """
 from datetime import datetime
 
@@ -12,32 +39,6 @@ from pymysql.err import IntegrityError, ProgrammingError
 from rto_process import get_scm_connection
 
 TABLE = "boxvault_invoice_lines"
-CREATE = f"""
-CREATE TABLE IF NOT EXISTS {TABLE} (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    supplier_gstin VARCHAR(15) NOT NULL,
-    invoice_number VARCHAR(64) NOT NULL,
-    line_no SMALLINT NOT NULL,
-    warehouse VARCHAR(64) NOT NULL,
-    invoice_date DATE NOT NULL,
-    supplier VARCHAR(255) NOT NULL,
-    description VARCHAR(512) NOT NULL,
-    sku VARCHAR(64) NOT NULL,
-    hsn VARCHAR(16) NOT NULL,
-    qty DECIMAL(14, 2) NOT NULL,
-    rate DECIMAL(14, 2) NOT NULL,
-    tax_pct DECIMAL(6, 2) NOT NULL,
-    tax_amount DECIMAL(14, 2) NOT NULL,
-    amount DECIMAL(14, 2) NOT NULL COMMENT 'before tax',
-    total DECIMAL(14, 2) NOT NULL COMMENT 'amount + tax',
-    file_name VARCHAR(255) NOT NULL,
-    drive_link VARCHAR(512) NOT NULL,
-    uploaded_by VARCHAR(64) NOT NULL,
-    uploaded_at DATETIME NOT NULL,
-    UNIQUE KEY uq_invoice_line (supplier_gstin, invoice_number, line_no),
-    KEY idx_warehouse_sku (warehouse, sku)
-) COMMENT 'BoxVault Invoice Entry (Warehouse Power Portal, invoice_entries.py)'
-"""
 FIELDS = ("warehouse", "invoice_number", "invoice_date", "supplier", "supplier_gstin", "line_no", "description", "sku",
           "hsn", "qty", "rate", "tax_pct", "tax_amount", "amount", "total", "file_name", "drive_link", "uploaded_by",
           "uploaded_at")
@@ -78,11 +79,6 @@ def add(invoice, warehouse, file_name, drive_link, by):
     conn = get_scm_connection()
     try:
         with conn.cursor() as cur:
-            # created only when missing: CREATE TABLE IF NOT EXISTS needs the CREATE privilege even when it exists
-            cur.execute("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s",
-                        (TABLE,))
-            if not cur.fetchone():
-                cur.execute(CREATE)
             cur.executemany(f"INSERT INTO {TABLE} ({', '.join(FIELDS)}) VALUES ({', '.join(['%s'] * len(FIELDS))})", rows)
         conn.commit()
     except IntegrityError as e:

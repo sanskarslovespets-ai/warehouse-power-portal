@@ -357,9 +357,9 @@ viewers only see it.
   with tax, its Total. All 72 of Dealberg's October 2026 invoices read and
   matched their totals. Scans, photos, spreadsheets and other layouts are still
   saved to Drive, and the upload says they weren't read.
-- **Kept in:** `scm.boxvault_invoice_lines` (`invoice_entries.py`), made by the
-  first invoice saved, like `warehouse_user_access`; the database account needs
-  CREATE for that, then SELECT, INSERT and DELETE. An invoice is known by its
+- **Kept in:** `scm.boxvault_invoice_lines` (`invoice_entries.py`, whose
+  docstring has its CREATE TABLE). Tables are made by hand, not by the portal;
+  the database account needs SELECT, INSERT and DELETE on it. An invoice is known by its
   supplier's GSTIN and number, so one already entered is neither entered nor
   uploaded again; Remove takes one out (its PDF stays in Drive), a cancelled
   invoice say, and it can be uploaded again.
@@ -371,27 +371,30 @@ viewers only see it.
   - **Spend by warehouse and top items:** horizontal bars.
   - **Data checks:** invoices for one warehouse with identical lines (cancelled
     and re-issued?), SKUs whose price changed, more boxes used than bought, lines
-    without a SKU, and SKUs with no ERP usage.
+    without a SKU, and SKUs with no boxes used entered.
   - **Stock by warehouse and SKU:** bought, used, price and spend.
 
   Each warehouse keeps one colour whatever the filters (slots 1–7 of a
   palette validated for colour-blind separation on the card surface).
-- **Refresh:** Analytics and Invoice Entry (with SKU used from the ERP) are
+- **Refresh:** Analytics and Invoice Entry (with SKU used) are
   fetched again every hour while the page is open; a page in a background tab
   refreshes when it's next looked at. The time of the last refresh is shown
   next to the views, and a failed hourly refresh keeps what's shown.
-- **SKU used** (`box_usage.py`): counted from the ERP (`DN_DB_*`)
-  each time Invoice Entry loads. SKU used = completed delivery notes (`status =
-  'Completed'`, `is_return = 0`) from the invoice's warehouse
-  (`custom_mother_warehouse`) that carry the box's SKU as an item, dated on or
-  after the invoice date; one delivery note is one box. When a warehouse has
-  several invoices for a SKU, each box goes against the oldest invoice dated on
-  or before its delivery note that hasn't had all its boxes counted yet, so none
-  is counted twice; any beyond that go on the newest one, whose SKU used then
-  goes past its quantity (Analytics' data checks list those). If the ERP can't be read, the lines are
-  still listed with "—" and a note. Box SKUs have rarely been put on delivery
-  notes since June 2025 (one in October 2026, at Gurugram), so for now SKU used
-  is mostly 0.
+- **Boxes used** (`box_usage.py`, `POST /api/boxvault/usage`): editors type how
+  many boxes of each SKU a warehouse used in a month, after an upload that adds
+  invoices (the dialog moves on to a table of their SKUs) or with **Enter
+  usage** (every SKU invoiced by the end of the chosen month, by warehouse). One
+  number per warehouse, SKU and month, kept in `scm.boxvault_sku_usage` (made
+  by hand: the CREATE TABLE is in `box_usage.py`'s docstring; the database
+  account needs SELECT, INSERT and UPDATE on it). A new number replaces the old;
+  an empty box leaves it; months that haven't started (in IST) are refused.
+- **SKU used:** worked out from those numbers each time Invoice Entry loads. A
+  month's boxes go against the oldest of the warehouse's invoices for the SKU
+  dated by the end of that month that hasn't had all its boxes counted yet, so
+  none is counted twice; any beyond that go on the newest one, whose SKU used
+  then goes past its quantity (Analytics' data checks list those). Until the
+  table exists SKU used is 0, Enter usage is disabled, and the page says so; if
+  it can't be read, the lines are still listed with "—" and a note.
 - **Setting it up:** make the folder **in a shared drive**, not in someone's My
   Drive: Drive won't store a service account's uploads in a My Drive ("Service
   Accounts do not have storage quota"), and the panel says so if the folder is

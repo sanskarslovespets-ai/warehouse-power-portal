@@ -6,8 +6,10 @@
   //   /api/boxvault/invoices, which reads each PDF invoice's warehouse from its Ship To address, puts the file in
   //   Google Drive in that warehouse's folder ("Unsorted" if none was read) and its line items in Invoice Entry.
   // - Invoice Entry: those line items (/api/boxvault/entries), filtered and totalled here; editors can take an
-  //   invoice out (a cancelled one, say), which leaves its PDF in Drive. SKU used comes
-  //   with them, counted from the ERP's delivery notes (box_usage.py).
+  //   invoice out (a cancelled one, say), which leaves its PDF in Drive. SKU used comes with them, worked out from
+  //   the boxes used that editors enter (box_usage.py).
+  // - Enter usage (and the step after an upload that added invoices): how many boxes of each SKU a warehouse used
+  //   in a month, typed into a table and sent to /api/boxvault/usage.
   // - Analytics (boxvault_analytics.js, the first view): the same lines, totalled and compared.
   // Both are fetched again every hour while the page is open (when it's next looked at, if it's in the background).
   // The warehouses (the filter), the file types and the limits come from /api/boxvault, the first time the panel is opened.
@@ -31,12 +33,27 @@
   const fileInput = $("bv-files");
   const fileList = $("bv-file-list");
   const submitBtn = $("bv-submit");
+  const modalTitle = $("bv-modal-title");
+  const usageBtn = $("bv-enter-usage");
+  const usageForm = $("bv-usage-form");
+  const usageError = $("bv-usage-error");
+  const usageMonth = $("bv-usage-month");
+  const usageWh = $("bv-usage-wh");
+  const usageRows = $("bv-usage-rows");
+  const usageEmpty = $("bv-usage-empty");
+  const usageSave = $("bv-usage-save");
+  const usageCancel = $("bv-usage-cancel");
 
   let settings = null; // /api/boxvault: {warehouses: [{id, name}], extensions, max_files, max_total_bytes, ready}
   let access = { role: "viewer" };
   let rows = []; // /api/boxvault/entries
+  let usage = []; // the boxes used entered: [{warehouse, sku, month: "YYYY-MM", used, entered_by, entered_at}]
+  let usageReady = false; // whether they can be saved here (scm.boxvault_sku_usage exists)
+  let usageOnly = null; // in the step after an upload: a Set of its invoices' "warehouse|sku"; null for every SKU
+  let uploadLines = null; // that upload's banner lines, kept when the boxes used are saved
   let chosen = []; // the File objects to upload, in the order they were added
   let uploading = false;
+  let saving = false;
   let opened = false;
   let view = "analytics"; // or "entries"
   let refreshing = false; // the hourly timer is running
@@ -65,6 +82,18 @@
   const money = (n) => num(n, 2);
   const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const day = (iso) => `${iso.slice(8, 10)} ${MON[+iso.slice(5, 7) - 1]} ${iso.slice(0, 4)}`;
+  const monthLabel = (ym) => `${MON[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
+  const thisMonth = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+  const monthEnd = (ym) => new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7), 0)).toISOString().slice(0, 10);
+
+  // "DEL Supertails 15*15*15 Printed 5 Ply carton box" -> "15 × 15 × 15"
+  function boxSize(description) {
+    const m = /(\d+(?:\.\d+)?)\s*\*\s*(\d+(?:\.\d+)?)\s*\*\s*(\d+(?:\.\d+)?)/.exec(description);
+    return m ? `${m[1]} × ${m[2]} × ${m[3]}` : description;
+  }
 
   function extension(name) {
     const dot = name.lastIndexOf(".");
@@ -110,6 +139,7 @@
       return;
     }
     whFilter.replaceChildren(new Option("All warehouses", ""), ...settings.warehouses.map((w) => new Option(w.name, w.id)));
+    usageWh.replaceChildren(new Option("All warehouses", ""), ...settings.warehouses.map((w) => new Option(w.name, w.id)));
     fileInput.accept = settings.extensions.join(",");
     $("bv-files-hint").textContent =
       `PDFs, images or spreadsheets, up to ${settings.max_files} files. Each PDF invoice goes into Invoice Entry under the warehouse in its Ship To address, so one upload can cover several warehouses. Choose files again to add more to the list.`;
@@ -121,7 +151,7 @@
 
   const clock = () => new Date().toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
 
-  // Every hour, Invoice Entry and its SKU used (from the ERP) are fetched again; a page in the background waits
+  // Every hour, Invoice Entry and its SKU used are fetched again; a page in the background waits
   // until it's looked at.
   function startRefreshing() {
     if (refreshing) return;
@@ -143,6 +173,11 @@
     try {
       const data = await getJson("/api/boxvault/entries");
       rows = data.rows;
+      usage = data.usage || [];
+      usageReady = !!data.usage_ready;
+      usageBtn.disabled = !usageReady;
+      usageBtn.title = usageReady ? "How many boxes of each SKU the warehouses used in a month"
+        : "Boxes used can't be entered yet: the scm.boxvault_sku_usage table hasn't been made";
       usageProblem.textContent = data.usage_problem || "";
       usageProblem.classList.toggle("hidden", !data.usage_problem);
       updatedEl.textContent = `Updated ${clock()} · refreshes every hour`;
@@ -312,8 +347,17 @@
     submitBtn.textContent = chosen.length > 1 ? `Upload ${chosen.length} files` : "Upload";
   }
 
+  // The dialog shows one form at a time: "files" (Upload invoices) or "usage" (the boxes used).
+  function showStep(step) {
+    form.hidden = step !== "files";
+    usageForm.hidden = step !== "usage";
+    overlay.querySelector(".modal").classList.toggle("bv-wide", step === "usage");
+    modalTitle.textContent = step === "files" ? "Upload invoices" : usageOnly ? "Boxes used" : "Enter usage";
+  }
+
   function openForm() {
     if (!settings || !settings.ready) return;
+    showStep("files");
     chosen = [];
     fileInput.value = "";
     formError.classList.add("hidden");
@@ -323,7 +367,7 @@
   }
 
   function closeForm() {
-    if (uploading) return; // the upload would carry on unseen
+    if (uploading || saving) return; // it would carry on unseen
     overlay.classList.add("hidden");
   }
 
@@ -381,9 +425,19 @@
     if (files.length) {
       const { lines, kind } = outcome(files);
       showBanner(lines, kind);
-      loadEntries();
+      uploadLines = { lines, kind };
+      await loadEntries();
     }
     if (res && res.ok) {
+      // Invoices added: on to how many of their boxes were used (or close, if that can't be saved here).
+      const added = files.filter((f) => f.entry.status === "added");
+      const pairs = new Set(rows.filter((r) => r.sku && added.some((f) => f.warehouse === r.warehouse && f.entry.invoice === r.invoice_number))
+        .map((r) => r.warehouse + "|" + r.sku));
+      if (usageReady && pairs.size) {
+        const n = added.length;
+        openUsage(pairs, `Added ${n} invoice${n === 1 ? "" : "s"} to Invoice Entry. How many boxes of each SKU did the warehouse use in the month below? You can also do this later with Enter usage.`);
+        return;
+      }
       closeForm();
       return;
     }
@@ -394,6 +448,132 @@
     }
     showFormError(answer.error || (res ? `Upload failed (${res.status}). Please try again.` : "Couldn't reach the server. Please try again."));
   });
+
+  // ---------- Boxes used (Enter usage, and after an upload) ----------
+
+  // The SKUs to enter boxes used for: each warehouse's SKUs on invoices dated by the end of the month (after an
+  // upload, only that upload's), with the quantity bought by then and what's been entered for the month.
+  function usageList(month) {
+    const end = monthEnd(month);
+    const wh = usageOnly ? "" : usageWh.value;
+    const byKey = new Map();
+    rows.forEach((r) => {
+      const key = r.warehouse + "|" + r.sku;
+      if (!r.sku || r.invoice_date > end || (wh && r.warehouse !== wh) || (usageOnly && !usageOnly.has(key))) return;
+      const s = byKey.get(key) || { warehouse: r.warehouse, sku: r.sku, item: boxSize(r.description), bought: 0 };
+      s.bought += r.qty;
+      byKey.set(key, s);
+    });
+    const saved = new Map(usage.filter((u) => u.month === month).map((u) => [u.warehouse + "|" + u.sku, u.used]));
+    const order = Object.fromEntries(settings.warehouses.map((w, i) => [w.id, i]));
+    return [...byKey.values()].map((s) => ({ ...s, saved: saved.get(s.warehouse + "|" + s.sku) }))
+      .sort((a, b) => order[a.warehouse] - order[b.warehouse] || a.sku.localeCompare(b.sku));
+  }
+
+  function renderUsage() {
+    const month = usageMonth.value || thisMonth();
+    const list = usageList(month);
+    $("bv-usage-head").textContent = `Used in ${monthLabel(month)}`;
+    usageRows.replaceChildren(...list.map((s) => {
+      const input = el("input", "bv-usage-input");
+      Object.assign(input, { type: "number", min: "0", step: "1", inputMode: "numeric", placeholder: "—" });
+      input.value = input.dataset.saved = s.saved == null ? "" : String(s.saved);
+      input.dataset.warehouse = s.warehouse;
+      input.dataset.sku = s.sku;
+      input.setAttribute("aria-label", `Boxes of ${s.sku} used at ${warehouseName(s.warehouse)} in ${monthLabel(month)}`);
+      const cell = el("td", "num");
+      cell.append(input);
+      const tr = el("tr");
+      tr.append(el("td", "ct-left", warehouseName(s.warehouse)), el("td", "ct-left bv-sku", s.sku),
+        el("td", "ct-left", s.item), el("td", "num", qty(s.bought)), cell);
+      return tr;
+    }));
+    $("bv-usage-table").hidden = !list.length;
+    usageEmpty.hidden = list.length > 0;
+    usageEmpty.textContent = usageOnly
+      ? `None of these invoices is dated by the end of ${monthLabel(month)}, so their boxes can't have been used then. Choose a later month.`
+      : `No SKUs were invoiced${usageWh.value ? " at " + warehouseName(usageWh.value) : ""} by the end of ${monthLabel(month)}.`;
+    usageSave.disabled = !list.length;
+  }
+
+  function openUsage(only, intro) {
+    usageOnly = only;
+    usageMonth.max = thisMonth();
+    usageMonth.value = thisMonth();
+    usageWh.value = "";
+    usageWh.hidden = !!only;
+    $("bv-usage-intro").textContent = intro;
+    usageCancel.textContent = only ? "Skip" : "Cancel";
+    usageError.classList.add("hidden");
+    showStep("usage");
+    renderUsage();
+    overlay.classList.remove("hidden");
+    (usageRows.querySelector("input") || usageMonth).focus();
+  }
+
+  function showUsageError(message) {
+    usageError.textContent = message;
+    usageError.classList.remove("hidden");
+    usageForm.scrollTop = 0;
+  }
+
+  function setSaving(busy) {
+    saving = busy;
+    [usageMonth, usageWh, usageSave, usageCancel, $("bv-close"), ...usageRows.querySelectorAll("input")].forEach((c) => {
+      c.disabled = busy;
+    });
+    usageSave.textContent = busy ? "Saving…" : "Save";
+  }
+
+  usageMonth.addEventListener("change", () => {
+    usageError.classList.add("hidden");
+    renderUsage();
+  });
+  usageWh.addEventListener("change", renderUsage);
+
+  usageForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const month = usageMonth.value;
+    if (!/^\d{4}-\d{2}$/.test(month)) return showUsageError("Choose the month the boxes were used in.");
+    if (month > thisMonth()) return showUsageError("Boxes used can't be entered for a month that hasn't started yet.");
+    const numbers = [], bad = [];
+    usageRows.querySelectorAll("input").forEach((input) => {
+      const text = input.value.trim();
+      if (input.validity.badInput) bad.push(input.dataset.sku);
+      else if (text === "" || text === input.dataset.saved) return; // empty or unchanged: left as it is
+      else if (!/^\d+$/.test(text)) bad.push(input.dataset.sku);
+      else numbers.push({ warehouse: input.dataset.warehouse, sku: input.dataset.sku, used: Number(text) });
+    });
+    if (bad.length) return showUsageError(`Enter whole numbers of boxes, 0 or more, for ${bad.join(", ")}.`);
+    if (!numbers.length) {
+      closeForm(); // nothing new to save
+      return;
+    }
+    setSaving(true);
+    try {
+      await getJson("/api/boxvault/usage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month, numbers }),
+      });
+    } catch (err) {
+      setSaving(false);
+      return showUsageError(err.message);
+    }
+    setSaving(false);
+    const saved = `Saved the boxes used in ${monthLabel(month)} for ${numbers.length} SKU${numbers.length === 1 ? "" : "s"}.`;
+    if (usageOnly && uploadLines) showBanner([...uploadLines.lines, saved], uploadLines.kind);
+    else showBanner(saved, "success");
+    closeForm();
+    loadEntries();
+  });
+
+  usageBtn.addEventListener("click", () => {
+    if (!settings || !usageReady) return;
+    uploadLines = null;
+    openUsage(null, "How many boxes of each SKU did each warehouse use in the month below? Only SKUs invoiced by the end of the month are listed.");
+  });
+  usageCancel.addEventListener("click", closeForm);
 
   uploadBtn.addEventListener("click", openForm);
   $("bv-close").addEventListener("click", closeForm);

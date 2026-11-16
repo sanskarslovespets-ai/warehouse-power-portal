@@ -1726,6 +1726,24 @@ fieldset.form-row legend { margin-bottom: 6px; padding: 0; font-size: 12.5px; fo
 .bx #bv-table td.bv-sku { font-family: var(--font-mono); font-size: 12px; }
 .bx #bv-table td.bv-na { color: var(--muted); }
 .bx #bv-usage-problem { margin: 0 0 16px; }
+/* BoxVault's boxes used (Enter usage, and the step after an upload): #bv-usage-form in the upload dialog */
+#bv-modal .modal.bv-wide { max-width: 860px; }
+.bv-usage-intro { margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; color: var(--text); }
+.bv-usage-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
+.bv-usage-controls label { font-size: 12.5px; font-weight: 700; }
+.bv-usage-box { margin-bottom: 10px; max-height: 50vh; overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
+#bv-usage-table td.bv-sku { font-family: var(--font-mono); font-size: 12px; }
+#bv-usage-table tbody td:first-child { min-width: 0; }
+#bv-usage-table th:last-child, #bv-usage-table td:last-child { width: 1%; }
+.bv-usage-input {
+  width: 104px; padding: 5px 8px; text-align: right;
+  font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text);
+  background: var(--bx-fill); border: 1px solid var(--border-strong); border-radius: 8px;
+}
+.bv-usage-input { -moz-appearance: textfield; appearance: textfield; }
+.bv-usage-input::-webkit-inner-spin-button, .bv-usage-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.bv-usage-input:focus { outline: 2px solid var(--primary); outline-offset: 1px; background: var(--card); }
+.bv-usage-empty { margin: 0; padding: 18px 16px; font-size: 13px; color: var(--muted); }
 /* BoxVault > Analytics (boxvault_analytics.js) */
 .bx #bv-analytics .kpi-row { margin-top: 16px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
 @media (max-width: 960px) { .bx #bv-analytics .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
